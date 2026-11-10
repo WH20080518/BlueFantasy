@@ -1,0 +1,231 @@
+:root {
+  --sea-950: #041418;
+  --sea-900: #061a20;
+  --sea-800: #0a2a33;
+  --sea-600: #14505c;
+  --foam: #d9e9e6;
+  --mist: #9fc3c4;
+  --accent: #d9663d;
+  --line: rgba(217, 233, 230, 0.16);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--sea-950);
+  color: var(--foam);
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 100svh;
+  padding: clamp(1.25rem, 4vw, 3rem);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(70% 55% at 18% 8%, rgba(217, 102, 61, 0.16), transparent 62%),
+    radial-gradient(80% 65% at 82% 28%, rgba(20, 80, 92, 0.55), transparent 66%),
+    linear-gradient(180deg, var(--sea-900) 0%, var(--sea-800) 52%, var(--sea-950) 100%);
+}
+
+.stage::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 58%;
+  height: 1px;
+  z-index: -1;
+  background: linear-gradient(90deg, transparent, rgba(217, 233, 230, 0.22), transparent);
+}
+
+.top,
+.bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.mark {
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--line);
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+}
+
+.meta,
+.status,
+.link {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--mist);
+}
+
+.hero {
+  max-width: 56rem;
+  padding: 8vh 0 10vh;
+}
+
+.eyebrow {
+  margin: 0 0 1.5rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  color: var(--mist);
+}
+
+h1 {
+  margin: 0;
+  font-family: "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", "SimSun", serif;
+  font-size: clamp(3.5rem, 13vw, 9.5rem);
+  font-weight: 600;
+  line-height: 0.92;
+  letter-spacing: -0.02em;
+}
+
+.latin {
+  margin: 0.6rem 0 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-size: clamp(1rem, 2.2vw, 1.5rem);
+  font-style: italic;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.lede {
+  max-width: 26ch;
+  margin: 2.25rem 0 0;
+  font-size: clamp(1rem, 1.8vw, 1.25rem);
+  line-height: 1.7;
+  color: rgba(217, 233, 230, 0.82);
+}
+
+.bottom {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: breathe 2.8s ease-in-out infinite;
+}
+
+.link {
+  color: var(--foam);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(217, 233, 230, 0.35);
+  padding-bottom: 0.15rem;
+  transition: border-color 180ms ease, color 180ms ease;
+}
+
+.link:hover,
+.link:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.hero,
+.top,
+.bottom {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 700ms ease, transform 700ms ease;
+}
+
+.is-ready .hero,
+.is-ready .top,
+.is-ready .bottom {
+  opacity: 1;
+  transform: none;
+}
+
+.is-ready .hero {
+  transition-delay: 80ms;
+}
+
+.is-ready .bottom {
+  transition-delay: 220ms;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .meta {
+    display: none;
+  }
+
+  .hero {
+    padding: 6vh 0 8vh;
+  }
+
+  .bottom {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .hero,
+  .top,
+  .bottom {
+    opacity: 1;
+    transform: none;
+  }
+}
