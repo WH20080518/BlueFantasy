@@ -2,13 +2,14 @@
 
 山东大学翻译学院「蓝色创想·以语为桥」跨文化传播创新实践大赛 **B 赛道（蓝色数字传播）** 交互式网页参赛项目。
 
-> 选题方向、语种与交互形式尚未最终确定，由团队讨论后更新。当前仓库先固化赛事要求、技术架构与交付标准。
+> 选题已定：**《榫合》**——拆开一艘中国古船，讲榫、钉、捻缝与水密隔舱，纠正“古船不用一根钉”的误解。
 
 ## 项目状态
 
-- 阶段：立项 / 架构设计
-- 选题：待定，候选见 [`docs/04-design-direction.md`](docs/04-design-direction.md)
-- 技术栈：Vite + 原生 JavaScript + CSS/SVG，3D 按需接入 Three.js
+- 阶段：叙事与建模
+- 作品名：榫合 / *Joinery*
+- 选题：已定，方案见 [`docs/04-design-direction.md`](docs/04-design-direction.md)
+- 技术栈：Vite + 原生 JavaScript + CSS/SVG，Three.js 局部承担船体
 - 目标提交：2026-11-19 24:00 前
 
 ## 文档

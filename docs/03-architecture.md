@@ -1,6 +1,6 @@
 # 整体架构
 
-> 状态：提案稿。选题方向确定后再细化，但分层与边界先固定，避免后期返工。
+> 状态：已按《榫合》方向细化。选题、3D 范围与交互边界已定，分层保持不变。
 
 ## 1. 目标与非目标
 
@@ -27,7 +27,7 @@
 | 样式 | 原生 CSS + CSS 变量 | 设计令牌集中管理，便于统一视觉 |
 | 叙事 | 自研滚动控制器 + IntersectionObserver | 可控、可降级，不引入重型滚动库 |
 | 2D 视觉 | DOM + SVG + CSS 动画 | 清晰、可访问、体积小 |
-| 3D（可选） | Three.js | 按需动态 import，独立 chunk |
+| 3D（核心，局部） | Three.js | 只服务船体剖切、节点、接缝；动态 import，独立 chunk |
 | 多语种 | JSON 文案包 + 运行时切换 | 文案与代码分离，便于翻译审校 |
 | 部署 | GitHub Pages / Cloudflare Pages | 静态、免费、链接稳定 |
 
@@ -44,7 +44,7 @@
 │  beat 定义 / 滚动进度 / 场景切换 / 降级策略   │
 ├─────────────────────────────────────────────┤
 │  Scene Layer                                │
-│  A. DOM/SVG 场景   B. Three.js 场景（可选）   │
+│  A. DOM/SVG 场景   B. Three.js 船体场景（核心）│
 ├─────────────────────────────────────────────┤
 │  Content & i18n                             │
 │  story.<lang>.json / 术语表 / 字幕            │
@@ -104,22 +104,42 @@
 - 复杂插画用内联 SVG，便于换色与响应式
 - 所有装饰性图形 `aria-hidden="true"`
 
-### 5.2 Three.js 场景（可选）
+### 5.2 Three.js 场景（核心，局部）
+
+只做三件资产：
+
+1. 剖切船体：外壳 + 3 道隔舱板 + 龙骨
+2. 榫卯节点：榫头、卯眼、木钉/铁钉、捻缝
+3. 船壳板接缝：用于补缝交互
 
 接入条件：
 
-- 3D 承担叙事功能，不是装饰
-- 优化后模型 ≤ 10 MB，纹理 ≤ 4 MB
-- 首屏不加载；进入对应 beat 前预加载
+- 3D 承担“结构证据”，不是装饰
+- 优化后 GLB ≤ 5 MB，纹理 ≤ 2 张 1024
+- 首屏不加载；进入 beat 2 前预加载
 - 独立 chunk，`import()` 动态加载
-- 加载失败或无 WebGL 时回退到静态图/SVG
+- 加载失败或无 WebGL 时回退到 SVG 等距爆炸图
 
 性能预算：
 
+- 总三角面 ≤ 35,000
+- draw call ≤ 20
 - 桌面 60fps，移动端 ≥ 30fps
-- draw call ≤ 100
 - 像素比上限 `Math.min(devicePixelRatio, 2)`
 - 页面隐藏时暂停渲染循环
+
+### 5.3 船体资产管线
+
+```
+Rhino（3DM，mm）
+  → 分件、命名、图层
+  → OBJ / FBX
+  → Blender：减面、UV、AO、GLB
+  → public/models/ship.glb
+  → Three.js：加载、材质覆盖、爆炸/漏水/补缝
+```
+
+命名与面数预算见 [`07-modeling-brief.md`](07-modeling-brief.md)。零件位置存 `content/ship-parts.json`，前端按节点名查找。
 
 ## 6. 多语种架构
 
@@ -160,6 +180,7 @@ BlueFantasy/
 │  │  └─ scroll.js
 │  ├─ scene/
 │  │  ├─ dom-scenes.js
+│  │  ├─ ship.js          # 船体加载、爆炸、漏水、补缝
 │  │  └─ three-scene.js
 │  ├─ i18n/
 │  │  ├─ index.js
@@ -173,6 +194,9 @@ BlueFantasy/
 │     ├─ base.css
 │     └─ scenes.css
 ├─ content/
+│  ├─ story.zh.json
+│  ├─ story.en.json
+│  └─ ship-parts.json     # 零件名称、爆炸位置、术语
 ├─ docs/
 └─ submission/          # 不提交
 ```
@@ -209,6 +233,8 @@ BlueFantasy/
 - 首屏 HTML+CSS+关键字体 ≤ 300 KB（压缩后）
 - 首屏图片 ≤ 500 KB，优先 WebP/AVIF
 - 3D chunk 单独加载，不阻塞首屏
+- GLB ≤ 5 MB，总三角面 ≤ 35,000，draw call ≤ 20
+- 纹理 ≤ 2 张 1024；不使用 HDR 环境贴图
 - 所有图片有 `alt`，装饰图 `alt=""`
 - 键盘可完成语言切换与 beat 导航
 - 焦点样式可见，不用 `outline: none`
@@ -219,10 +245,11 @@ BlueFantasy/
 
 | 编号 | 决策 | 状态 |
 |---|---|---|
-| ADR-001 | 选题：岚山号子 / 海草房 / 登州古港 | 待团队讨论 |
-| ADR-002 | 是否使用 3D | 待定，倾向“局部使用” |
-| ADR-003 | 语种组合：中英 / 中英俄 / 中英法 | 待定 |
-| ADR-004 | 部署平台：GitHub Pages / Cloudflare Pages | 待定 |
-| ADR-005 | 是否使用音频 | 待定，取决于选题 |
+| ADR-001 | 选题：《榫合》——古船结构与“榫合钉接” | **已定** |
+| ADR-002 | 3D 范围：局部核心（剖切船体 + 节点 + 接缝） | **已定** |
+| ADR-003 | 语种组合：中英必做，第三语种 11-12 定 | 待定 |
+| ADR-004 | 部署：GitHub Pages 主 + Cloudflare Pages 备 | **已上线** |
+| ADR-005 | 音频/旁白：是否加入环境音 | 待定，11-13 前 |
+| ADR-006 | 3D 工具链：Rhino → Blender → GLB | **已定** |
 
 每项决策确定后，在 `docs/adr/` 下补一份简短记录：背景、选项、结论、影响。
