@@ -57,10 +57,11 @@ npm run build
 npm run preview
 ```
 
-## 部署（规划）
+## 部署
 
-- 主站：GitHub Pages（仓库需为 Public；私有库需 GitHub Pro）
-- 备用：Cloudflare Pages（同一仓库，免费）
+- 主站：https://wh20080518.github.io/BlueFantasy/ （GitHub Pages）
+- 备用：https://bluefantasy.pages.dev （Cloudflare Pages）
+- 推 `main` 自动部署；Cloudflare 由 Git 集成构建
 - 提交材料同时写主站与备用链接
 - 评审期必须保持链接可访问
 

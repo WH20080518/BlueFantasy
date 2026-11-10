@@ -2,9 +2,14 @@
 
 主站是 GitHub Pages。本文档记录 Cloudflare Pages 备用镜像的接入方式。
 
-> 当前状态：仓库已就绪，Cloudflare 侧尚未创建项目。需要账号授权后执行一次。
+> 当前状态：已接入并上线。
 
-## 方案 A：Dashboard 连接 Git（推荐，2 分钟）
+## 正式地址
+
+- 主站：https://wh20080518.github.io/BlueFantasy/
+- 备用：https://bluefantasy.pages.dev
+
+## 方案 A：Dashboard 连接 Git（已采用）
 
 1. 登录 Cloudflare Dashboard
 2. 左侧 **Workers & Pages** → **Create** → **Pages** → **Connect to Git**
@@ -68,6 +73,8 @@ export default defineConfig({
 主链接：https://wh20080518.github.io/BlueFantasy/
 备用链接：https://bluefantasy.pages.dev
 ```
+
+已验证：两个地址均返回 200，Cloudflare 节点为 HKG，JS/CSS 资源无 404。
 
 ## 验收
 
