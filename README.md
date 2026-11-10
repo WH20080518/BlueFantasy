@@ -20,6 +20,8 @@
 | [`docs/03-architecture.md`](docs/03-architecture.md) | 整体架构、技术选型、目录结构与部署方案 |
 | [`docs/04-design-direction.md`](docs/04-design-direction.md) | 选题候选、叙事结构、视觉方向（待讨论） |
 | [`docs/05-roadmap.md`](docs/05-roadmap.md) | 11 月 10 日至 19 日的排期与分工 |
+| [`docs/06-cloudflare-pages.md`](docs/06-cloudflare-pages.md) | Cloudflare Pages 备用镜像接入与验证 |
+| [`docs/07-modeling-brief.md`](docs/07-modeling-brief.md) | 《榫合》船体与榫卯节点建模 brief |
 
 ## 目录结构（规划）
 
