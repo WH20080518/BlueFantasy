@@ -1,0 +1,83 @@
+# ============================================================
+# BlueFantasy .gitignore
+# 适用：Vite + 原生 JS，3D 资源可选
+# ============================================================
+
+# 依赖
+node_modules/
+.pnpm-store/
+.yarn/
+jspm_packages/
+
+# 构建产物
+dist/
+build/
+out/
+.vite/
+.cache/
+.parcel-cache/
+*.tsbuildinfo
+
+# 环境变量与密钥
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# 日志
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+!.vscode/extensions.json
+
+# 3D / 设计源文件：只保留导出的网页资源
+*.blend1
+*.blend2
+*.fbx
+*.obj
+*.mtl
+*.max
+*.c4d
+*.psd
+*.ai
+*.sketch
+*.xcf
+*.indd
+*.eps
+
+# 临时文件
+*.tmp
+*.temp
+*.bak
+*.bak-*
+*~
+
+# 测试与覆盖率
+coverage/
+test-results/
+playwright-report/
+
+# 比赛交付物（不进源码库）
+submission/
+demo/
+*.zip
+# 如确需把演示视频纳入仓库，删除下一行并改用 Git LFS
+*.mp4
+*.mov
+
+# ============================================================
+# 保留：src/ public/ index.html package.json 锁文件
+#       *.glb *.gltf *.bin *.webp *.ktx2 *.woff2
+# ============================================================
