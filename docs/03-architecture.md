@@ -179,11 +179,30 @@ BlueFantasy/
 
 ## 8. 部署
 
-- 构建产物 `dist/` 为纯静态文件
-- GitHub Pages：`main` 分支 `/docs` 或 `gh-pages` 分支；私有仓库需 GitHub Pro 才能开 Pages
-- Cloudflare Pages：连接仓库，构建命令 `npm run build`，输出目录 `dist`
-- 评审链接使用自定义短路径，避免带 hash
-- 提交前用手机网络实测一次
+主站 GitHub Pages，备用 Cloudflare Pages。
+
+### 8.1 GitHub Pages（主）
+
+- 仓库必须为 **Public**；免费 Pages 不支持私有库（私有库需 GitHub Pro）
+- Settings → Pages → Source 选 **GitHub Actions**
+- 推送到 `main` 触发 `.github/workflows/deploy.yml`：安装依赖 → 构建 → 发布 `dist`
+- 项目页地址：`https://wh20080518.github.io/BlueFantasy/`
+- Vite 必须设置 `base: '/BlueFantasy/'`，否则 JS/CSS 404
+- 绑定自定义域名到根路径后，`base` 改回 `'/'`
+
+### 8.2 Cloudflare Pages（备）
+
+- 同一仓库接入，构建命令 `npm run build`，输出目录 `dist`
+- 免费，支持私有仓库
+- 地址形如 `https://bluefantasy.pages.dev`
+- 提交材料同时写主站与备用链接
+
+### 8.3 验收
+
+- 校园网、手机 4G/5G、家庭宽带各测一次
+- 主站打不开时备用链接可用
+- 评审期链接保持可访问
+- 大陆访问存在波动风险，不以“本地能开”代替真实网络测试
 
 ## 9. 性能与可访问性预算
 

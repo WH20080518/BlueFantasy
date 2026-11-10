@@ -59,9 +59,10 @@ npm run preview
 
 ## 部署（规划）
 
-- 首选：GitHub Pages（仓库需为 Public，或使用 GitHub Pro）
-- 备选：Cloudflare Pages / Netlify
-- 评审期必须保持测试链接可访问
+- 主站：GitHub Pages（仓库需为 Public；私有库需 GitHub Pro）
+- 备用：Cloudflare Pages（同一仓库，免费）
+- 提交材料同时写主站与备用链接
+- 评审期必须保持链接可访问
 
 ## 许可
 
