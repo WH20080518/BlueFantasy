@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="t2 d2">
+  <title id="t2">榫头与卯眼爆炸图</title>
+  <desc id="d2">两块木构件沿轴线分离，左侧为榫头，右侧为卯眼。用于第 2 幕的 SVG 降级展示。</desc>
+  <defs>
+    <linearGradient id="woodA" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8A6244"/>
+      <stop offset="1" stop-color="#5E4129"/>
+    </linearGradient>
+    <linearGradient id="woodB" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7A563C"/>
+      <stop offset="1" stop-color="#4E3624"/>
+    </linearGradient>
+    <pattern id="grain" width="26" height="26" patternUnits="userSpaceOnUse">
+      <path d="M0 6 Q 13 2 26 6" fill="none" stroke="#3A2A1D" stroke-opacity="0.18" stroke-width="1"/>
+      <path d="M0 19 Q 13 15 26 19" fill="none" stroke="#3A2A1D" stroke-opacity="0.12" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="675" fill="#E8E4DC"/>
+
+  <!-- 轴线 -->
+  <g stroke="#B23A2E" stroke-opacity="0.45" stroke-width="1.5" stroke-dasharray="10 8">
+    <path d="M120 338 L1080 338"/>
+  </g>
+  <text x="600" y="322" text-anchor="middle" font-family="'Noto Serif SC',serif" font-size="13" fill="#B23A2E" opacity="0.7" letter-spacing="3">分离轴 / AXIS</text>
+
+  <!-- 左：带榫头的构件 -->
+  <g transform="translate(130,240)">
+    <rect x="0" y="0" width="360" height="196" rx="6" fill="url(#woodA)" stroke="#3A2A1D" stroke-opacity="0.6" stroke-width="2"/>
+    <rect x="0" y="0" width="360" height="196" rx="6" fill="url(#grain)"/>
+    <!-- 榫头 -->
+    <rect x="360" y="58" width="118" height="80" fill="url(#woodA)" stroke="#3A2A1D" stroke-opacity="0.7" stroke-width="2"/>
+    <rect x="360" y="58" width="118" height="80" fill="url(#grain)"/>
+    <!-- 榫头高亮 -->
+    <rect x="360" y="58" width="118" height="80" fill="none" stroke="#B23A2E" stroke-width="2.5"/>
+    <text x="418" y="104" text-anchor="middle" font-family="'Noto Serif SC',serif" font-size="17" fill="#F2EADC">榫头</text>
+    <text x="418" y="126" text-anchor="middle" font-family="Georgia,serif" font-size="12" fill="#F2EADC" opacity="0.85" font-style="italic">tenon</text>
+    <text x="180" y="104" text-anchor="middle" font-family="'Noto Serif SC',serif" font-size="15" fill="#F2EADC" opacity="0.75">构件 A</text>
+  </g>
+
+  <!-- 右：带卯眼的构件 -->
+  <g transform="translate(700,240)">
+    <rect x="0" y="0" width="360" height="196" rx="6" fill="url(#woodB)" stroke="#3A2A1D" stroke-opacity="0.6" stroke-width="2"/>
+    <rect x="0" y="0" width="360" height="196" rx="6" fill="url(#grain)"/>
+    <!-- 卯眼凹槽 -->
+    <rect x="0" y="58" width="126" height="80" fill="#2E2116" stroke="#3A2A1D" stroke-opacity="0.8" stroke-width="2"/>
+    <rect x="0" y="58" width="126" height="80" fill="none" stroke="#B23A2E" stroke-width="2.5"/>
+    <text x="63" y="104" text-anchor="middle" font-family="'Noto Serif SC',serif" font-size="17" fill="#F2EADC">卯眼</text>
+    <text x="63" y="126" text-anchor="middle" font-family="Georgia,serif" font-size="12" fill="#F2EADC" opacity="0.85" font-style="italic">mortise</text>
+    <text x="240" y="104" text-anchor="middle" font-family="'Noto Serif SC',serif" font-size="15" fill="#F2EADC" opacity="0.75">构件 B</text>
+  </g>
+
+  <!-- 尺寸标注 -->
+  <g stroke="#3A3F44" stroke-opacity="0.5" stroke-width="1.2" fill="#3A3F44">
+    <path d="M490 200 L490 180 M700 200 L700 180"/>
+    <path d="M490 190 L700 190"/>
+    <text x="595" y="240" text-anchor="middle" font-family="'Noto Serif SC',serif" font-size="12" opacity="0.6">插入行程</text>
+  </g>
+
+  <!-- 标题 -->
+  <g font-family="'Noto Serif SC','Songti SC',serif" fill="#3A3F44">
+    <text x="72" y="96" font-size="15" letter-spacing="6" opacity="0.55">JOINT · ONE</text>
+    <text x="72" y="132" font-size="30" opacity="0.9">榫头，卯眼</text>
+    <text x="72" y="628" font-size="13" opacity="0.45">示意结构，不代表某艘沉船的实测节点</text>
+  </g>
+</svg>

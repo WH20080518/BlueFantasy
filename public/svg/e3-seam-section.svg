@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="t3 d3">
+  <title id="t3">船板接缝剖面：榫卯、钉、捻缝</title>
+  <desc id="d3">船壳板接缝的放大剖面，自左至右叠加榫卯定位、铁钉加固、桐油灰与麻丝捻缝三层做法。用于第 3 幕。</desc>
+  <defs>
+    <linearGradient id="plankTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8A6244"/><stop offset="1" stop-color="#63452C"/>
+    </linearGradient>
+    <linearGradient id="plankBot" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6E4E35"/><stop offset="1" stop-color="#4A331F"/>
+    </linearGradient>
+    <pattern id="grain3" width="30" height="14" patternUnits="userSpaceOnUse">
+      <path d="M0 4 Q 15 1 30 4" fill="none" stroke="#2E2116" stroke-opacity="0.15" stroke-width="1"/>
+    </pattern>
+    <marker id="arrow3" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#3A3F44" fill-opacity="0.65"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="675" fill="#E8E4DC"/>
+
+  <!-- 上板 -->
+  <g>
+    <rect x="150" y="250" width="900" height="80" fill="url(#plankTop)" stroke="#2E2116" stroke-opacity="0.55" stroke-width="2"/>
+    <rect x="150" y="250" width="900" height="80" fill="url(#grain3)"/>
+  </g>
+  <!-- 下板 -->
+  <g>
+    <rect x="150" y="330" width="900" height="80" fill="url(#plankBot)" stroke="#2E2116" stroke-opacity="0.55" stroke-width="2"/>
+    <rect x="150" y="330" width="900" height="80" fill="url(#grain3)"/>
+  </g>
+
+  <!-- 缝 -->
+  <path d="M150 330 L1050 330" stroke="#B23A2E" stroke-opacity="0.6" stroke-width="2"/>
+
+  <!-- 1. 榫卯定位（左段） -->
+  <g>
+    <rect x="250" y="306" width="120" height="50" fill="#8A6244" stroke="#2E2116" stroke-opacity="0.7" stroke-width="2"/>
+    <rect x="262" y="306" width="96" height="50" fill="#2E2116" fill-opacity="0.35"/>
+    <circle cx="310" cy="240" r="18" fill="#E8E4DC" stroke="#3A3F44" stroke-opacity="0.5" stroke-width="1.5"/>
+    <text x="310" y="246" text-anchor="middle" font-size="16" font-family="Georgia,serif" fill="#3A3F44">1</text>
+    <path d="M310 262 L310 300" stroke="#3A3F44" stroke-opacity="0.55" stroke-width="1.5" marker-end="url(#arrow3)"/>
+    <text x="310" y="200" text-anchor="middle" font-family="'Noto Serif SC',serif" font-size="16" fill="#3A3F44">榫卯定位</text>
+    <text x="310" y="220" text-anchor="middle" font-family="Georgia,serif" font-size="11" font-style="italic" fill="#3A3F44" opacity="0.7">tenon locates</text>
+  </g>
+
+  <!-- 2. 铁钉（中段） -->
+  <g>
+    <circle cx="600" cy="240" r="18" fill="#E8E4DC" stroke="#3A3F44" stroke-opacity="0.5" stroke-width="1.5"/>
+    <text x="600" y="246" text-anchor="middle" font-size="16" font-family="Georgia,serif" fill="#3A3F44">2</text>
+    <text x="600" y="200" text-anchor="middle" font-family="'Noto Serif SC',serif" font-size="16" fill="#3A3F44">铁钉 / 木钉加固</text>
+    <text x="600" y="220" text-anchor="middle" font-family="Georgia,serif" font-size="11" font-style="italic" fill="#3A3F44" opacity="0.7">nail fastening</text>
+    <!-- 钉子剖面 -->
+    <g stroke="#3A3F44" stroke-width="7" stroke-linecap="round">
+      <path d="M600 262 L600 400"/>
+    </g>
+    <path d="M584 262 L616 262 L616 272 L584 272 Z" fill="#3A3F44"/>
+    <path d="M600 400 L592 412 L608 412 Z" fill="#3A3F44"/>
+  </g>
+
+  <!-- 3. 捻缝（右段） -->
+  <g>
+    <circle cx="880" cy="240" r="18" fill="#E8E4DC" stroke="#3A3F44" stroke-opacity="0.5" stroke-width="1.5"/>
+    <text x="880" y="246" text-anchor="middle" font-size="16" font-family="Georgia,serif" fill="#3A3F44">3</text>
+    <text x="880" y="200" text-anchor="middle" font-family="'Noto Serif SC',serif" font-size="16" fill="#3A3F44">桐油灰 + 麻丝捻缝</text>
+    <text x="880" y="220" text-anchor="middle" font-family="Georgia,serif" font-size="11" font-style="italic" fill="#3A3F44" opacity="0.7">caulking</text>
+    <!-- 缝内填充 -->
+    <rect x="800" y="318" width="160" height="24" fill="#C8A268" stroke="#8A6A3A" stroke-width="1.5"/>
+    <path d="M800 330 Q 840 322 880 330 T 960 330" fill="none" stroke="#8A6A3A" stroke-width="1.2" stroke-opacity="0.7"/>
+    <path d="M880 342 L880 372" stroke="#3A3F44" stroke-opacity="0.55" stroke-width="1.5" marker-end="url(#arrow3)"/>
+  </g>
+
+  <!-- 分层标注 -->
+  <g font-family="'Noto Serif SC',serif" font-size="13" fill="#3A3F44" opacity="0.7">
+    <text x="150" y="440">三种做法叠加使用，不是三选一</text>
+  </g>
+
+  <!-- 标题 -->
+  <g font-family="'Noto Serif SC','Songti SC',serif" fill="#3A3F44">
+    <text x="72" y="96" font-size="15" letter-spacing="6" opacity="0.55">JOINT · TWO</text>
+    <text x="72" y="132" font-size="30" opacity="0.9">榫卯之外，还有钉与缝</text>
+    <text x="72" y="628" font-size="13" opacity="0.45">剖面为示意放大，不按实际板厚比例</text>
+  </g>
+</svg>

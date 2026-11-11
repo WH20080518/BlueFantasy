@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="t4 d4">
+  <title id="t4">水密隔舱俯视剖面</title>
+  <desc id="d4">船体俯视剖面，三道横向隔舱板把船分成四个互不相通的舱。用于第 4、5 幕的 SVG 降级展示。</desc>
+  <defs>
+    <linearGradient id="deck" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EDE7DB"/><stop offset="1" stop-color="#DFD7C7"/>
+    </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8FB3BE" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#5F8794" stop-opacity="0.85"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="675" fill="#E8E4DC"/>
+
+  <!-- 船体外轮廓（俯视） -->
+  <path d="M240 200
+           Q 600 150 960 200
+           L 960 250
+           Q 1010 330 960 420
+           L 960 470
+           Q 600 520 240 470
+           L 240 420
+           Q 190 330 240 250
+           Z"
+        fill="url(#deck)" stroke="#3A2A1D" stroke-opacity="0.75" stroke-width="3"/>
+
+  <!-- 内部舱室 -->
+  <g stroke="#3A2A1D" stroke-opacity="0.45" stroke-width="2" fill="#DFD7C7">
+    <path d="M300 205 Q 300 330 300 468 L 460 480 L 460 196 Z"/>
+  </g>
+
+  <!-- 隔舱板 -->
+  <g>
+    <rect x="450" y="180" width="26" height="315" rx="3" fill="#6B4B33" stroke="#2E2116" stroke-opacity="0.8" stroke-width="2"/>
+    <rect x="640" y="165" width="26" height="345" rx="3" fill="#6B4B33" stroke="#2E2116" stroke-opacity="0.8" stroke-width="2"/>
+    <rect x="830" y="180" width="26" height="315" rx="3" fill="#6B4B33" stroke="#2E2116" stroke-opacity="0.8" stroke-width="2"/>
+  </g>
+
+  <!-- 舱室编号 -->
+  <g font-family="Georgia,serif" font-size="15" fill="#3A2A1D" opacity="0.75" text-anchor="middle">
+    <text x="380" y="335">1</text>
+    <text x="560" y="335">2</text>
+    <text x="748" y="335">3</text>
+    <text x="910" y="335">4</text>
+  </g>
+
+  <!-- 进水演示（第 3 舱） -->
+  <g opacity="0.95">
+    <path d="M666 180 L830 180 L830 495 L666 495 Z" fill="url(#water)"/>
+    <text x="748" y="345" text-anchor="middle" font-family="'Noto Serif SC',serif" font-size="17" fill="#F2EADC">进水</text>
+    <text x="748" y="368" text-anchor="middle" font-family="Georgia,serif" font-size="11" font-style="italic" fill="#F2EADC" opacity="0.9">flooded</text>
+  </g>
+
+  <!-- 标注 -->
+  <g font-family="'Noto Serif SC',serif" font-size="13" fill="#3A3F44">
+    <path d="M1000 200 L890 200" stroke="#3A3F44" stroke-opacity="0.5" stroke-width="1.2"/>
+    <text x="1006" y="196" opacity="0.75">隔舱板</text>
+    <text x="1006" y="214" font-family="Georgia,serif" font-size="11" font-style="italic" opacity="0.6">bulkhead</text>
+
+    <path d="M1000 430 L870 460" stroke="#3A3F44" stroke-opacity="0.5" stroke-width="1.2"/>
+    <text x="1006" y="446" opacity="0.75">船壳</text>
+    <text x="1006" y="464" font-family="Georgia,serif" font-size="11" font-style="italic" opacity="0.6">hull planking</text>
+  </g>
+
+  <!-- 标题 -->
+  <g font-family="'Noto Serif SC','Songti SC',serif" fill="#3A3F44">
+    <text x="72" y="96" font-size="15" letter-spacing="6" opacity="0.55">STRUCTURE</text>
+    <text x="72" y="132" font-size="30" opacity="0.9">一艘船，几个房间</text>
+    <text x="72" y="628" font-size="13" opacity="0.45">此处仅示意 3 道隔舱板、4 个舱室，不代表某艘船的实勘数量</text>
+  </g>
+</svg>

@@ -89,3 +89,6 @@ demo/
 *.doc
 *.pptx
 *.ppt
+
+# 本地临时：给外部 agent 读的技能文件
+.local-skills/

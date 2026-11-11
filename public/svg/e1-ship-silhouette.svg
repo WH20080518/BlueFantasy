@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="t1 d1">
+  <title id="t1">中国古船侧视剪影</title>
+  <desc id="d1">一艘中国古船的侧视剪影，船壳半透明，用于第 1 幕；非考古复原图，仅为示意。</desc>
+  <defs>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#C9D3D6"/>
+      <stop offset="0.55" stop-color="#DCE3E3"/>
+      <stop offset="1" stop-color="#E8E4DC"/>
+    </linearGradient>
+    <linearGradient id="hull" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6B4B33" stop-opacity="0.82"/>
+      <stop offset="1" stop-color="#3A2A1D" stop-opacity="0.92"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="675" fill="url(#sea)"/>
+
+  <!-- 海雾横带 -->
+  <g opacity="0.5">
+    <rect y="430" width="1200" height="2" fill="#B9C5C8"/>
+    <rect y="470" width="1200" height="1" fill="#B9C5C8"/>
+    <rect y="512" width="1200" height="1" fill="#B9C5C8"/>
+  </g>
+
+  <!-- 船体侧影：平底、方艏、高艉，带舷弧 -->
+  <g transform="translate(0,20)">
+    <path d="M150 470
+             L196 424
+             L236 415
+             L300 404
+             L420 396
+             L560 392
+             L700 392
+             L830 398
+             L940 410
+             L1010 428
+             L1046 452
+             L1060 470
+             L1040 486
+             L980 494
+             L860 498
+             L700 500
+             L540 500
+             L400 496
+             L280 488
+             L200 480
+             Z"
+          fill="url(#hull)" fill-opacity="0.55" stroke="#3A2A1D" stroke-width="2.5" stroke-opacity="0.75"/>
+
+    <!-- 内部结构：淡显，暗示可拆 -->
+    <g stroke="#E8E4DC" stroke-opacity="0.28" stroke-width="1.6" fill="none">
+      <path d="M300 404 L300 488"/>
+      <path d="M420 396 L420 498"/>
+      <path d="M560 392 L560 500"/>
+      <path d="M700 392 L700 500"/>
+      <path d="M830 398 L830 496"/>
+      <path d="M940 410 L940 486"/>
+      <path d="M200 470 L1040 470"/>
+    </g>
+
+    <!-- 艉楼 / 艏楼 -->
+    <path d="M880 398 L940 372 L1002 372 L1010 428 L940 410 Z"
+          fill="#5A3E2A" fill-opacity="0.45" stroke="#3A2A1D" stroke-width="2" stroke-opacity="0.6"/>
+    <path d="M236 415 L286 388 L340 388 L300 404 Z"
+          fill="#5A3E2A" fill-opacity="0.35" stroke="#3A2A1D" stroke-width="2" stroke-opacity="0.5"/>
+
+    <!-- 桅与帆的暗示：不加细节，避免复原争议 -->
+    <g stroke="#3A2A1D" stroke-opacity="0.55" stroke-width="3" stroke-linecap="round">
+      <path d="M420 400 L420 150"/>
+      <path d="M700 392 L700 120"/>
+      <path d="M900 384 L900 180"/>
+    </g>
+    <g fill="#6B4B33" fill-opacity="0.12" stroke="#6B4B33" stroke-opacity="0.25" stroke-width="1.2">
+      <path d="M424 160 L424 330 L610 350 L610 190 Z"/>
+      <path d="M704 132 L704 330 L880 348 L880 168 Z"/>
+    </g>
+  </g>
+
+  <!-- 水线 -->
+  <path d="M150 492 L1060 492" stroke="#5A6E72" stroke-width="2" stroke-opacity="0.7"/>
+  <g fill="#5A6E72" fill-opacity="0.18">
+    <rect x="150" y="492" width="910" height="60"/>
+  </g>
+
+  <!-- 角落标注 -->
+  <g font-family="'Noto Serif SC','Songti SC',serif" fill="#3A3F44">
+    <text x="72" y="96" font-size="15" letter-spacing="6" opacity="0.55">CHINESE SHIP</text>
+    <text x="72" y="132" font-size="30" opacity="0.85">中国古船 · 侧视示意</text>
+    <text x="72" y="620" font-size="13" opacity="0.45">示意图，非考古复原；结构位置仅表达关系</text>
+  </g>
+</svg>
