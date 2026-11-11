@@ -4,6 +4,7 @@ import { CameraRig, CAMERAS } from './camera.js'
 import { Parts } from './parts.js'
 import { createFlood } from '../interactions/flood.js'
 import { createCaulk } from '../interactions/caulk.js'
+import { loadShip } from './loader.js'
 
 // three 场景：渲染循环、resize（DPR 上限 2）、半球光 + 方向光（无阴影贴图）。
 
@@ -19,9 +20,73 @@ async function loadPartsSpec(base) {
   }
 }
 
-function bindRealMeshes(/* gltfRoot, nodes */) {
-  // TODO(models): 真 GLB 到位后，按 name 把 gltfRoot.getObjectByName(name)
-  // 的网格替换进 nodes 对应 Group（保留 Group 的装配/爆炸变换）。
+// 真模型材质统一到项目四色，避免 GLB 自带贴图带来的体积与风格不一致。
+const MODEL_PALETTE = {
+  wood: 0x6b4b33,
+  accent: 0xc08a4a,
+  iron: 0x3a3f44,
+  paper: 0xe8e4dc,
+}
+
+function paletteFor(name) {
+  if (/iron|nail/i.test(name)) return MODEL_PALETTE.iron
+  if (/caulk|seam/i.test(name)) return MODEL_PALETTE.paper
+  if (/joint|tenon|mortise/i.test(name)) return MODEL_PALETTE.accent
+  return MODEL_PALETTE.wood
+}
+
+const materialCache = new Map()
+
+function sharedMaterial(color) {
+  let mat = materialCache.get(color)
+  if (!mat) {
+    mat = new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.78,
+      metalness: color === MODEL_PALETTE.iron ? 0.35 : 0.05,
+    })
+    materialCache.set(color, mat)
+  }
+  return mat
+}
+
+// 按 name 把 GLB 网格塞进占位 Group：
+// - 只替换子物体，保留 Group 的 position/rotation（装配位、爆炸位都在 Group 上）
+// - 子物体自身位移归零，单位按包围盒判断（>100 视为毫米，整树 0.001）
+// 返回成功接上的零件数。
+function bindRealMeshes(gltf, nodes) {
+  const root = gltf?.scene ?? gltf?.scenes?.[0]
+  if (!root) return 0
+
+  root.updateMatrixWorld(true)
+  const size = new THREE.Box3().setFromObject(root).getSize(new THREE.Vector3())
+  const maxDim = Math.max(size.x, size.y, size.z)
+  const unitScale = maxDim > 100 ? 0.001 : 1
+
+  let bound = 0
+  nodes.forEach((group, name) => {
+    const source = root.getObjectByName(name)
+    if (!source) return
+
+    const clone = source.clone(true)
+    clone.position.set(0, 0, 0)
+    clone.rotation.set(0, 0, 0)
+    clone.scale.copy(source.scale).multiplyScalar(unitScale)
+
+    const material = sharedMaterial(paletteFor(name))
+    clone.traverse((obj) => {
+      if (!obj.isMesh) return
+      obj.material = material
+      obj.castShadow = false
+      obj.receiveShadow = false
+    })
+
+    group.clear()
+    group.add(clone)
+    bound += 1
+  })
+
+  return bound
 }
 
 function smoothstep(t) {
@@ -67,8 +132,18 @@ export async function createStage({ canvas, beats, reducedMotion, base }) {
       if (Array.isArray(p.assembled)) g.position.fromArray(p.assembled)
       if (Array.isArray(p.exploded)) g.userData.exploded = p.exploded
     })
-    bindRealMeshes(null, nodes)
   }
+
+  // 真模型异步接入：不阻塞首屏，失败/超时保持占位几何。
+  let realModel = null
+  loadShip(`${base}models/ship.glb`, { base })
+    .then((gltf) => {
+      if (!gltf || realModel) return
+      realModel = gltf
+      const bound = bindRealMeshes(gltf, nodes)
+      if (bound > 0) console.info(`[stage] GLB 已接入 ${bound} 个零件`)
+    })
+    .catch((err) => console.warn('[stage] 接入 GLB 失败：', err))
 
   const parts = new Parts(nodes)
   const flood = createFlood({ ship: shipGroup, compWater: water.comp, fullWater: water.full, bulkheads, water }, reducedMotion)
@@ -79,6 +154,7 @@ export async function createStage({ canvas, beats, reducedMotion, base }) {
 
   let beatIndex = 0
   let spin = 0
+  let callsChecked = false
   const anchorV = new THREE.Vector3()
   const visibleSet = new Set()
   const boxCache = new Map()
@@ -155,6 +231,13 @@ export async function createStage({ canvas, beats, reducedMotion, base }) {
       flood.update(dt)
 
       renderer.render(scene, camera)
+
+      // 真模型接入后查一次 draw call 预算（阈值 20），避免逐帧刷日志
+      if (realModel && !callsChecked) {
+        callsChecked = true
+        const calls = renderer.info.render.calls
+        if (calls > 20) console.warn(`[stage] draw calls ${calls} 超过预算 20`)
+      }
     },
 
     // 指针拾取：client 坐标 → 节点名
