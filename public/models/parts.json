@@ -1,0 +1,132 @@
+[
+  {
+    "name": "hull_shell",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      0,
+      5,
+      0
+    ]
+  },
+  {
+    "name": "keel",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      0,
+      -3,
+      0
+    ]
+  },
+  {
+    "name": "stem",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      7,
+      2,
+      0
+    ]
+  },
+  {
+    "name": "sternpost",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      -7,
+      2,
+      0
+    ]
+  },
+  {
+    "name": "bulkhead_01",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      0,
+      4,
+      0
+    ]
+  },
+  {
+    "name": "bulkhead_02",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      0,
+      7,
+      0
+    ]
+  },
+  {
+    "name": "bulkhead_03",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      0,
+      10,
+      0
+    ]
+  },
+  {
+    "name": "plank_seam",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      0,
+      6,
+      3
+    ]
+  },
+  {
+    "name": "joint_tenon",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      5,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "joint_mortise",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      5,
+      5,
+      0
+    ]
+  }
+]
