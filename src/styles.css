@@ -391,6 +391,134 @@ body {
   margin-top: 1.1rem;
 }
 
+/* 三问：一次一题，答完给解释 */
+.quiz {
+  margin: 0 0 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
+.quiz-step {
+  margin: 0 0 0.35rem;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--tung);
+}
+
+.quiz-q {
+  margin: 0 0 0.55rem;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.quiz-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.quiz-opt {
+  appearance: none;
+  flex: 1 1 100%;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--paper);
+  font-family: var(--serif);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  text-align: left;
+  padding: 0.42rem 0.7rem;
+  cursor: pointer;
+  transition: transform 140ms ease-out, border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.quiz-opt:hover:not(:disabled) {
+  border-color: var(--tung);
+  color: var(--tung);
+}
+
+.quiz-opt:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.quiz-opt.is-right {
+  border-color: var(--tung);
+  background: rgba(192, 138, 74, 0.16);
+  color: var(--tung);
+}
+
+.quiz-opt.is-wrong {
+  border-color: var(--cinnabar);
+  color: #d9705b;
+}
+
+.quiz-opt:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.quiz-why {
+  margin: 0.55rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.65;
+  color: var(--mist);
+}
+
+.quiz-why.is-right {
+  color: var(--tung);
+}
+
+.quiz-why.is-wrong {
+  color: #d9705b;
+}
+
+.quiz-next {
+  appearance: none;
+  margin-top: 0.6rem;
+  border: 1px solid var(--tung);
+  background: transparent;
+  color: var(--tung);
+  font-family: var(--serif);
+  font-size: 0.84rem;
+  letter-spacing: 0.06em;
+  padding: 0.35rem 1rem;
+  cursor: pointer;
+  transition: transform 140ms ease-out, background-color 160ms ease, color 160ms ease;
+}
+
+.quiz-next:hover {
+  background: var(--tung);
+  color: var(--wood-deep);
+}
+
+.quiz-next:active {
+  transform: scale(0.98);
+}
+
+.quiz-score {
+  margin: 0.7rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  color: var(--mist);
+}
+
+.quiz-score.is-done {
+  color: var(--tung);
+}
+
+@media (max-width: 640px) {
+  .quiz-opt {
+    font-size: 0.8rem;
+    padding: 0.42rem 0.6rem;
+  }
+
+  .quiz-q {
+    font-size: 0.88rem;
+  }
+}
+
 .credits {
   margin: 0 0 0.9rem;
   font-size: 0.78rem;
@@ -499,5 +627,45 @@ body {
   .flood-btn,
   .replay {
     transition: none;
+  }
+}
+
+/* 第 7 屏加了「三问」后内容变高：窄屏收紧间距，面板内部滚动兜底 */
+@media (max-width: 640px) {
+  .copy {
+    max-height: calc(100svh - 1.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .copy-title {
+    font-size: 1.3rem;
+  }
+
+  .copy-body p {
+    line-height: 1.65;
+  }
+
+  .coda {
+    margin-top: 0.8rem;
+  }
+
+  .quiz {
+    margin-bottom: 0.7rem;
+    padding-top: 0.7rem;
+  }
+
+  .quiz-q {
+    margin-bottom: 0.4rem;
+  }
+
+  .quiz-opt {
+    font-size: 0.78rem;
+    padding: 0.34rem 0.6rem;
+  }
+
+  .credits {
+    font-size: 0.72rem;
+    margin-bottom: 0.7rem;
   }
 }

@@ -1,5 +1,6 @@
 import { beats, ui } from '../content/beats.js'
 import { termWall, termById, nodeTerms } from '../content/glossary.js'
+import { createQuiz } from './quiz.js'
 
 // 文案渲染、进度条、语言切换、beat 指示、名称浮层。文案全部来自 content/，这里不做硬编码。
 
@@ -47,8 +48,23 @@ export function createOverlay({ reducedMotion, fallbackMode, handlers }) {
     bar: $('progressbar'),
     langToggle: $('lang-toggle'),
     partLabel: $('part-label'),
+    quizStep: $('quiz-step'),
+    quizQ: $('quiz-q'),
+    quizOpts: $('quiz-opts'),
+    quizWhy: $('quiz-why'),
+    quizScore: $('quiz-score'),
+    quizNext: $('quiz-next'),
   }
   const floodBtns = [...document.querySelectorAll('.flood-btn')]
+
+  const quiz = createQuiz({
+    stepEl: el.quizStep,
+    qEl: el.quizQ,
+    optsEl: el.quizOpts,
+    whyEl: el.quizWhy,
+    scoreEl: el.quizScore,
+    nextEl: el.quizNext,
+  })
 
   let lang = 'zh'
   let beatIndex = -1
@@ -181,6 +197,7 @@ export function createOverlay({ reducedMotion, fallbackMode, handlers }) {
       renderCaulkUI()
     }
     if (beat.interaction === 'flood') setFloodActive('with-bulkheads')
+    if (beat.interaction === 'replay') quiz.reset()
   }
 
   function applyBeatContent(i) {
@@ -235,6 +252,7 @@ export function createOverlay({ reducedMotion, fallbackMode, handlers }) {
       // 只换文案：交互状态从已记录状态恢复，不重置（不重新走 applyBeatInteraction）。
       renderCaulkUI()
       setFloodActive(floodActiveName)
+      quiz.setLang(lang)
     },
     get lang() {
       return lang
