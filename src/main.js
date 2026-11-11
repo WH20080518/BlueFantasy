@@ -225,7 +225,7 @@ function frame(now) {
   const i = beatIndexAt(p)
   const beat = beats[i]
   const lt = Math.min(1, Math.max(0, (p - beat.progress[0]) / (beat.progress[1] - beat.progress[0])))
-  const blend = i < beats.length - 1 ? Math.min(1, Math.max(0, (lt - 0.75) / 0.25)) : 0
+  const blend = i < beats.length - 1 ? Math.min(1, Math.max(0, (lt - 0.55) / 0.45)) : 0
 
   if (i !== currentBeat) onBeat(i)
   overlay.setProgress(p)

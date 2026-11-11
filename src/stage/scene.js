@@ -30,11 +30,16 @@ function smoothstep(t) {
 }
 
 function clampedDPR() {
-  return Math.min(window.devicePixelRatio || 1, 2)
+  return Math.min(window.devicePixelRatio || 1, 1.6)
 }
 
 export async function createStage({ canvas, beats, reducedMotion, base }) {
-  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true })
+  const renderer = new THREE.WebGLRenderer({
+    canvas,
+    alpha: true,
+    antialias: (window.devicePixelRatio || 1) < 1.5,
+    powerPreference: 'high-performance',
+  })
   renderer.setPixelRatio(clampedDPR())
   renderer.setClearColor(0x000000, 0)
 
@@ -75,6 +80,9 @@ export async function createStage({ canvas, beats, reducedMotion, base }) {
   let beatIndex = 0
   let spin = 0
   const anchorV = new THREE.Vector3()
+  const visibleSet = new Set()
+  const boxCache = new Map()
+  let frameNo = 0
 
   function resize() {
     renderer.setPixelRatio(clampedDPR())
@@ -118,12 +126,13 @@ export async function createStage({ canvas, beats, reducedMotion, base }) {
       const next = beats[i + 1]
 
       // 可见性：相机混合期间显示两个 beat 的并集
-      const visible = new Set(nodeSetFor(i))
-      if (blend > 0 && next) next.stage.nodes.forEach((n) => visible.add(n))
-      parts.setVisible([...visible])
+      visibleSet.clear()
+      nodeSetFor(i).forEach((n) => visibleSet.add(n))
+      if (blend > 0 && next) next.stage.nodes.forEach((n) => visibleSet.add(n))
+      parts.setVisible(visibleSet)
 
       // 相机
-      rig.update(beat.stage.camera, next ? next.stage.camera : null, blend)
+      rig.update(beat.stage.camera, next ? next.stage.camera : null, blend, lt, dt)
 
       // beat 1 缓慢自转；离开后回到 0
       const wantSpin = beat.stage.motion === 'idle-spin' && !reducedMotion()
@@ -171,7 +180,17 @@ export async function createStage({ canvas, beats, reducedMotion, base }) {
 
     // 名称浮层锚点（canvas 内像素坐标）；不可见/在背后返回 null
     anchorOf(name) {
-      if (!parts.anchor(name, anchorV)) return null
+      frameNo += 1
+      let box = boxCache.get(name)
+      const g = nodes.get(name)
+      if (!g || !g.visible) return null
+      // 包围盒每 6 帧更新一次，避免逐帧 setFromObject 造成的卡顿
+      if (!box || frameNo % 6 === 1) {
+        box = new THREE.Box3().setFromObject(g)
+        boxCache.set(name, box)
+      }
+      if (box.isEmpty()) return null
+      anchorV.set((box.min.x + box.max.x) / 2, box.max.y, (box.min.z + box.max.z) / 2)
       anchorV.project(camera)
       if (anchorV.z > 1) return null
       const w = canvas.clientWidth
