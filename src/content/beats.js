@@ -17,7 +17,7 @@ export const beats = [
         'Take a ship apart and the picture gets more interesting.',
       ],
     },
-    stage: { nodes: ['hull_shell'], camera: 'wide', motion: 'idle-spin' },
+    stage: { nodes: ['hull_shell', 'ship_deck'], camera: 'wide', motion: 'idle-spin' },
     fallback: 'svg/e1-ship-silhouette.svg',
     stageLabel: { zh: '舞台：一艘中国古船的剪影，外壳半透明', en: 'Stage: silhouette of a Chinese ship, translucent hull' },
   },
@@ -77,7 +77,7 @@ export const beats = [
       ],
     },
     stage: {
-      nodes: ['hull_shell', 'keel', 'stem', 'sternpost', 'bulkhead_01', 'bulkhead_02', 'bulkhead_03'],
+      nodes: ['hull_shell', 'bulkhead_01', 'bulkhead_02', 'bulkhead_03'],
       camera: 'cutaway',
       motion: 'none',
     },
@@ -101,12 +101,12 @@ export const beats = [
       ],
     },
     stage: {
-      nodes: ['hull_shell', 'keel', 'stem', 'sternpost', 'bulkhead_01', 'bulkhead_02', 'bulkhead_03'],
+      nodes: ['hull_shell', 'bulkhead_01', 'bulkhead_02', 'bulkhead_03'],
       camera: 'flood',
       motion: 'none',
     },
     interaction: 'flood',
-    fallback: 'svg/e4-bulkhead-plan.svg',
+    fallback: 'svg/e5-flood.svg',
     stageLabel: { zh: '舞台：船体侧视，一个舱正在进水', en: 'Stage: side view of the hull, one compartment flooding' },
   },
   {
@@ -125,7 +125,7 @@ export const beats = [
       ],
     },
     stage: {
-      nodes: ['hull_shell', 'keel', 'stem', 'sternpost', 'bulkhead_01', 'bulkhead_02', 'bulkhead_03'],
+      nodes: ['hull_shell', 'bulkhead_01', 'bulkhead_02', 'bulkhead_03'],
       camera: 'terms',
       motion: 'none',
     },
@@ -148,7 +148,7 @@ export const beats = [
       ],
     },
     stage: {
-      nodes: ['hull_shell', 'keel', 'stem', 'sternpost', 'bulkhead_01', 'bulkhead_02', 'bulkhead_03'],
+      nodes: ['hull_shell', 'ship_deck', 'bulkhead_01', 'bulkhead_02', 'bulkhead_03'],
       camera: 'away',
       motion: 'none',
     },

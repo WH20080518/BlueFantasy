@@ -2,6 +2,7 @@ import './styles.css'
 import { beats } from './content/beats.js'
 import { createOverlay } from './ui/overlay.js'
 import { initFallback } from './ui/fallback.js'
+import { introCopy } from './content/intro.js'
 
 // 入口：滚动引擎、语言状态、3D / 降级路由。
 // 滚动只在 requestAnimationFrame 里读一次 scrollY，不在 scroll 回调里遍历 DOM。
@@ -14,6 +15,8 @@ const reducedMotion = () => reducedMQ.matches
 const story = document.getElementById('story')
 const stageEl = document.getElementById('stage')
 const canvas = document.getElementById('stage-canvas')
+const introEl = document.getElementById('intro')
+const introBtn = document.getElementById('intro-start')
 const fallbackImg = document.getElementById('stage-fallback')
 
 // 稳定 svh 基准：100svh 不随移动端地址栏收缩变化，用它做高度与进度基准，避免地址栏收起时重算进度跳动。
@@ -184,6 +187,74 @@ function useFallback() {
   fallback = initFallback({ stageEl, img: fallbackImg, base })
   if (currentBeat >= 0) fallback.setBeat(beats[currentBeat], lang)
 }
+
+/* ---------- 开场 ---------- */
+
+let viewMode = !no3d && webglAvailable() ? '3d' : '2d'
+
+function applyViewMode() {
+  document.querySelectorAll('.intro-mode-btn').forEach((b) => {
+    b.classList.toggle('is-active', b.dataset.mode === viewMode)
+  })
+  if (viewMode === '2d') {
+    useFallback()
+  } else if (fallback) {
+    fallback = null
+    stageEl.classList.remove('is-fallback')
+    document.body.classList.remove('is-fallback')
+    fallbackImg.hidden = true
+    overlay.setFallbackMode(false)
+  }
+}
+
+function presentIntro() {
+  if (!introEl || !introBtn) return
+  document.getElementById('intro-eyebrow').textContent = introCopy.eyebrow.zh
+  document.getElementById('intro-title').textContent = introCopy.title.zh
+  document.getElementById('intro-sub').textContent = introCopy.sub.zh
+  document.getElementById('intro-note').textContent = introCopy.note.zh
+  introBtn.textContent = introCopy.start.zh
+  introBtn.setAttribute('aria-label', introCopy.startAria.zh)
+
+  const modeBtns = [...document.querySelectorAll('.intro-mode-btn')]
+  const mode3d = modeBtns.find((b) => b.dataset.mode === '3d')
+  if (mode3d && viewMode === '2d') {
+    mode3d.disabled = true
+    mode3d.setAttribute('aria-disabled', 'true')
+  }
+  modeBtns.forEach((b) => {
+    b.addEventListener('click', () => {
+      if (b.disabled) return
+      viewMode = b.dataset.mode
+      applyViewMode()
+    })
+  })
+
+  introEl.hidden = false
+  document.documentElement.classList.add('intro-locked')
+  window.scrollTo(0, 0)
+  applyViewMode()
+  introBtn.focus({ preventScroll: true })
+}
+
+function enterSite() {
+  if (!introEl || introEl.hidden || introEl.classList.contains('is-leaving')) return
+  window.scrollTo(0, 0)
+  document.documentElement.classList.remove('intro-locked')
+  if (reducedMotion()) {
+    introEl.remove()
+    stageEl.focus({ preventScroll: true })
+    return
+  }
+  introEl.classList.add('is-leaving')
+  window.setTimeout(() => {
+    introEl.remove()
+    stageEl.focus({ preventScroll: true })
+  }, 560)
+}
+
+introBtn?.addEventListener('click', enterSite)
+presentIntro()
 
 /* ---------- 启动 ---------- */
 

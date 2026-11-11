@@ -3,6 +3,8 @@
 
 export function initFallback({ stageEl, img, base }) {
   stageEl.classList.add('is-fallback')
+  // 纸面主题：整页切浅色，和 SVG 自带的纸底对齐
+  document.body.classList.add('is-fallback')
   img.hidden = false
 
   return {

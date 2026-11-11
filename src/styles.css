@@ -122,7 +122,12 @@ body {
   height: 100vh;
   height: 100svh;
   overflow: hidden;
-  background: linear-gradient(180deg, #0f1c20 0%, #17282e 55%, #0a1215 100%);
+  background:
+    /* 压暗下半部，让文案面板和水线有层次 */
+    linear-gradient(180deg, rgba(10, 18, 21, 0) 42%, rgba(10, 18, 21, 0.55) 100%),
+    /* 海水纹（立水）：多层波浪，贴底铺满 */
+    url("./assets/bg/sea-lines.svg") center bottom / cover no-repeat,
+    linear-gradient(180deg, #0f1c20 0%, #17282e 55%, #0a1215 100%);
 }
 
 .stage-canvas {
@@ -610,8 +615,8 @@ body {
   }
 
   .terms-list {
-    grid-template-columns: 1fr 1fr;
-    gap: 0.35rem 0.9rem;
+    grid-template-columns: 1fr;
+    gap: 0.3rem 0;
   }
 }
 
@@ -667,5 +672,212 @@ body {
   .credits {
     font-size: 0.72rem;
     margin-bottom: 0.7rem;
+  }
+}
+
+/* ---------- 开场 ---------- */
+html.intro-locked,
+html.intro-locked body {
+  overflow: hidden;
+}
+
+.intro[hidden] {
+  display: none;
+}
+
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: radial-gradient(ellipse 72% 62% at 50% 42%, rgba(11, 20, 23, 0.55), rgba(11, 20, 23, 0.95) 72%);
+  transition: opacity 520ms cubic-bezier(0.22, 1, 0.36, 1), transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 开场时把正文面板和顶栏藏起来，避免半透明遮罩下透出「重影」 */
+html.intro-locked .copy,
+html.intro-locked .topbar {
+  opacity: 0;
+}
+
+.intro.is-leaving {
+  opacity: 0;
+  transform: scale(1.015);
+  pointer-events: none;
+}
+
+.intro-inner {
+  max-width: 34rem;
+  text-align: center;
+}
+
+.intro-eyebrow {
+  margin: 0 0 1.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  color: var(--mist);
+}
+
+.intro-title {
+  margin: 0;
+  font-size: clamp(3rem, 8.5vw, 6.5rem);
+  font-weight: 600;
+  line-height: 1.06;
+  letter-spacing: 0.16em;
+  text-indent: 0.16em;
+}
+
+.intro-sub {
+  margin: 1.5rem auto 0;
+  max-width: 26em;
+  font-size: clamp(0.92rem, 1.5vw, 1.02rem);
+  line-height: 1.85;
+  color: rgba(233, 227, 214, 0.82);
+}
+
+.intro-note {
+  margin: 1.1rem 0 0;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  color: var(--mist);
+  opacity: 0.8;
+}
+
+.intro-start {
+  appearance: none;
+  margin-top: 2.4rem;
+  border: 1px solid var(--tung);
+  background: transparent;
+  color: var(--tung);
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  letter-spacing: 0.22em;
+  padding: 0.75rem 2.2rem;
+  cursor: pointer;
+  transition: transform 160ms ease-out, background-color 220ms ease, color 220ms ease;
+}
+
+.intro-start:hover {
+  background: var(--tung);
+  color: var(--wood-deep);
+}
+
+.intro-start:active {
+  transform: scale(0.98);
+}
+
+@media (max-width: 640px) {
+  .intro-sub {
+    font-size: 0.9rem;
+    line-height: 1.75;
+  }
+
+  .intro-start {
+    padding: 0.7rem 1.7rem;
+    letter-spacing: 0.16em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro {
+    transition: none;
+  }
+
+  /* 开场时把正文面板和顶栏藏起来，避免半透明遮罩下透出「重影」 */
+html.intro-locked .copy,
+html.intro-locked .topbar {
+  opacity: 0;
+}
+
+.intro.is-leaving {
+    transform: none;
+  }
+}
+/* ---------- 降级：纸面主题 ---------- */
+/* 没有 3D 时整页切成浅色，和 SVG 自带的纸底同色；深色面板不再压在图上。 */
+body.is-fallback {
+  --paper: #22302f;
+  --wood: #e8e4dc;
+  --wood-deep: #d9d3c5;
+  --panel: rgba(250, 247, 239, 0.94);
+  --line: rgba(34, 48, 47, 0.22);
+  --mist: #4d5f5d;
+  --tung: #8a5a24;
+  --cinnabar: #9c3327;
+}
+
+body.is-fallback .topbar {
+  background: linear-gradient(180deg, rgba(232, 228, 220, 0.96), rgba(232, 228, 220, 0));
+}
+
+body.is-fallback .progress {
+  background: rgba(34, 48, 47, 0.12);
+}
+
+body.is-fallback .stage {
+  background: #e8e4dc;
+}
+
+body.is-fallback .stage-fallback {
+  padding: 0;
+  background: #e8e4dc;
+}
+
+body.is-fallback .copy-body p {
+  color: rgba(34, 48, 47, 0.9);
+}
+
+body.is-fallback .caulk-step:disabled,
+body.is-fallback .flood-btn:disabled {
+  opacity: 1;
+  color: rgba(34, 48, 47, 0.45);
+  border-color: rgba(34, 48, 47, 0.28);
+  background: rgba(34, 48, 47, 0.05);
+}
+
+body.is-fallback .quiz-opt.is-right {
+  background: rgba(138, 90, 36, 0.14);
+}
+/* 开场页的 3D / 2D 切换 */
+.intro-mode {
+  display: flex;
+  width: fit-content;
+  margin: 1.6rem auto 0;
+  border: 1px solid var(--line);
+}
+
+.intro-mode-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--mist);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  padding: 0.32rem 0.95rem;
+  cursor: pointer;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.intro-mode-btn + .intro-mode-btn {
+  border-left: 1px solid var(--line);
+}
+
+.intro-mode-btn.is-active {
+  background: var(--tung);
+  color: var(--wood-deep);
+}
+
+.intro-mode-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+/* 平板竖屏：面板放宽一档，避免两边留白过多 */
+@media (min-width: 700px) and (max-width: 900px) {
+  .copy {
+    max-width: 32rem;
   }
 }
