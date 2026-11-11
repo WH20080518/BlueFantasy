@@ -2,136 +2,66 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>榫合 · Joinery</title>
     <meta
       name="description"
-      content="山东大学翻译学院「蓝色创想·以语为桥」跨文化传播创新实践大赛 B 赛道交互式网页《榫合》：拆开一艘中国古船，讲榫、钉、捻缝与水密隔舱。"
+      content="把一艘中国古船拆开：榫头与卯眼、铁钉与捻缝、水密隔舱，以及「榫卯」这个词如何穿过语言。Take a Chinese ship apart."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%233A2A20'/%3E%3Cpath d='M8 22 L16 8 L24 22 Z' fill='none' stroke='%23C08A4A' stroke-width='2'/%3E%3C/svg%3E"
     />
   </head>
   <body>
-    <main class="page">
-      <header class="site-head">
-        <span class="mark">BF</span>
-        <nav class="site-nav" aria-label="页面导航">
-          <a href="#about">项目</a>
-          <a href="#track">赛道</a>
-          <a href="#interactions">交互</a>
-          <a href="#status">进度</a>
-        </nav>
-        <a class="repo" href="https://github.com/WH20080518/BlueFantasy">GitHub</a>
-      </header>
+    <header class="topbar">
+      <span class="topbar-mark" aria-hidden="true">榫合 · Joinery</span>
+      <span class="topbar-beat" id="beat-indicator" aria-hidden="true"></span>
+      <button class="lang-toggle" id="lang-toggle" type="button" aria-label="切换到英文">EN</button>
+      <div class="progress" role="progressbar" aria-label="阅读进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressbar">
+        <span class="progress-fill" id="progress-fill"></span>
+      </div>
+    </header>
 
-      <section class="hero" aria-labelledby="title">
-        <p class="eyebrow">山东大学翻译学院 · 蓝色创想 · 跨文化传播创新实践大赛</p>
-        <h1 id="title">榫合</h1>
-        <p class="latin">Joinery</p>
-        <p class="lede">一艘中国古船的骨与缝。</p>
-        <p class="lede en">
-          A Chinese ship taken apart: tenons, nails, caulking, and watertight compartments.
-        </p>
-      </section>
+    <main class="story" id="story">
+      <div class="stage" id="stage" role="group" tabindex="0" aria-label="舞台">
+        <canvas class="stage-canvas" id="stage-canvas" role="img" aria-label="舞台"></canvas>
+        <img class="stage-fallback" id="stage-fallback" alt="" loading="lazy" hidden />
 
-      <section id="about" class="section">
-        <h2 class="label">项目简介 · About</h2>
-        <div class="prose">
-          <p>
-            本项目参加山东大学翻译学院「蓝色创想·以语为桥」跨文化传播创新实践大赛
-            <strong>B 赛道（蓝色数字传播）</strong>，以交互式网页讲述中国海洋故事。
-          </p>
-          <p>
-            作品以一艘中国古船为对象，拆开外壳，看榫头与卯眼、铁钉与捻缝、水密隔舱如何共同构成一艘能穿过风浪的船。
-          </p>
-          <p>
-            它也纠正一个流行说法：“中国古船不用一根钉”。实际常见做法是
-            <strong>“榫合钉接”</strong>：榫卯定位，铁钉加固，桐油灰与麻丝捻缝，隔舱板把船体分成独立舱室。
-          </p>
-          <p class="en">
-            The project takes a Chinese ship apart to show how mortise-and-tenon joints,
-            iron nails, caulking, and watertight bulkheads worked together — and why the
-            popular claim that “Chinese ships used no nails” is not accurate.
-          </p>
-        </div>
-      </section>
+        <div class="part-label" id="part-label" hidden></div>
 
-      <section id="track" class="section">
-        <h2 class="label">赛道 · Track</h2>
-        <dl class="facts">
-          <div class="fact">
-            <dt>赛道</dt>
-            <dd>B 赛道 · 蓝色数字传播</dd>
-          </div>
-          <div class="fact">
-            <dt>形式</dt>
-            <dd>交互式网页 + 3D 结构</dd>
-          </div>
-          <div class="fact">
-            <dt>语言</dt>
-            <dd>中文 / English（第三语种待定）</dd>
-          </div>
-          <div class="fact">
-            <dt>关键词</dt>
-            <dd>榫卯 · 钉接 · 捻缝 · 水密隔舱</dd>
-          </div>
-        </dl>
-      </section>
+        <section class="copy" id="copy" aria-live="polite">
+          <p class="copy-eyebrow" id="copy-eyebrow"></p>
+          <h1 class="copy-title" id="copy-title"></h1>
+          <div class="copy-body" id="copy-body"></div>
+          <p class="copy-hint" id="copy-hint" hidden></p>
 
-      <section id="interactions" class="section">
-        <h2 class="label">核心交互 · Interactions</h2>
-        <dl class="facts">
-          <div class="fact">
-            <dt>拆开一艘船</dt>
-            <dd>船体爆炸成零件，点击查看名称与结构。</dd>
+          <div class="caulk" id="caulk-ui" hidden>
+            <div class="caulk-steps" role="group" aria-label="补缝步骤" id="caulk-steps"></div>
+            <p class="caulk-status" id="caulk-status" role="status"></p>
           </div>
-          <div class="fact">
-            <dt>漏水实验</dt>
-            <dd>切换隔舱，观察一个舱进水后船是否还能浮。</dd>
-          </div>
-          <div class="fact">
-            <dt>补一道缝</dt>
-            <dd>在船板接缝上选择榫卯、铁钉与捻缝，选错就渗水。</dd>
-          </div>
-          <div class="fact">
-            <dt>术语出海</dt>
-            <dd>“榫卯”怎么翻译？在构件旁查看中英词条与译注。</dd>
-          </div>
-        </dl>
-      </section>
 
-      <section id="status" class="section">
-        <h2 class="label">当前进度 · Status</h2>
-        <ol class="timeline">
-          <li>
-            <span class="date">11-11</span>
-            <span>故事地图、术语表、分工确认</span>
-          </li>
-          <li>
-            <span class="date">11-13</span>
-            <span>船体 blockout 与页面骨架</span>
-          </li>
-          <li>
-            <span class="date">11-15</span>
-            <span>榫卯节点、漏水实验、多语种</span>
-          </li>
-          <li>
-            <span class="date">11-17</span>
-            <span>部署、手机适配、演示录屏</span>
-          </li>
-          <li>
-            <span class="date">11-19</span>
-            <span>提交作品</span>
-          </li>
-        </ol>
-        <p class="note">选题已定《榫合》，进入制作。</p>
-      </section>
+          <div class="flood" id="flood-ui" hidden>
+            <div class="flood-switch" role="group" id="flood-switch" aria-label="漏水实验开关">
+              <button type="button" class="flood-btn" data-flood="with-bulkheads"></button>
+              <button type="button" class="flood-btn" data-flood="without-bulkheads"></button>
+            </div>
+          </div>
 
-      <footer class="site-foot">
-        <span>山东大学翻译学院 · 2026</span>
-        <a href="https://github.com/WH20080518/BlueFantasy">
-          github.com/WH20080518/BlueFantasy
-        </a>
-      </footer>
+          <div class="terms" id="terms-ui" hidden>
+            <h2 class="terms-title" id="terms-title"></h2>
+            <ul class="terms-list" id="terms-list"></ul>
+          </div>
+
+          <div class="coda" id="coda-ui" hidden>
+            <p class="credits" id="credits"></p>
+            <button type="button" class="replay" id="replay"></button>
+          </div>
+        </section>
+      </div>
+      <!-- 滚动区间由 main.js 按 beats.js 的 progress 占比生成 -->
     </main>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
