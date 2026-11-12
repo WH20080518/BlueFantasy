@@ -17,7 +17,7 @@ export const beats = [
         'Take a ship apart and the picture gets more interesting.',
       ],
     },
-    stage: { nodes: ['hull_shell'], camera: 'wide', motion: 'idle-spin' },
+    stage: { nodes: ['hull_shell', 'ship_deck'], camera: 'wide', motion: 'idle-spin' },
     fallback: 'svg/e1-ship-silhouette.svg',
     stageLabel: { zh: '舞台：一艘中国古船的剪影，外壳半透明', en: 'Stage: silhouette of a Chinese ship, translucent hull' },
   },

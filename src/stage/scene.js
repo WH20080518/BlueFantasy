@@ -120,9 +120,13 @@ function bindRealMeshes(gltf, nodes, { unit } = {}) {
     clone.scale.set(1, 1, 1)
 
     const material = sharedMaterial(paletteFor(name))
+    // 船体是开口放样：单面渲染会只剩朝向相机的一半。外壳与甲板强制双面。
+    const twoSided = name === 'hull_shell' || name === 'ship_deck'
+    const mat = twoSided ? material.clone() : material
+    if (twoSided) mat.side = THREE.DoubleSide
     clone.traverse((obj) => {
       if (!obj.isMesh) return
-      obj.material = material
+      obj.material = mat
       obj.castShadow = false
       obj.receiveShadow = false
     })
