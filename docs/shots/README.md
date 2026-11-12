@@ -6,9 +6,9 @@
 
 ```
 docs/shots/
-├─ b1.png … b7.png    3D 版，7 个 beat
-├─ 2d/b1.png … 2d/b7.png   降级版（?no3d=1）
-└─ overview.png       7 张拼图，快速扫一眼
+├─ b1.jpg … b7.jpg    3D 版，7 个 beat
+├─ 2d/b1.jpg … 2d/b7.jpg   降级版（?no3d=1）
+└─ overview.jpg       7 张拼图，快速扫一眼
 ```
 
 ## 截图参数（不要改，否则没有可比性）
@@ -20,7 +20,7 @@ docs/shots/
 | 滚动位置 | b1 3% · b2 21% · b3 38% · b4 52% · b5 70% · b6 86% · b7 97% |
 | 每屏等待 | 2.6 秒（等相机阻尼收敛） |
 | 开场页 | 截图前点掉「开始探索」 |
-| 格式 | PNG |
+| 格式 | JPEG，质量 88（有损，用于视觉对照，不做像素级 diff） |
 
 ## 重新生成
 
@@ -34,7 +34,7 @@ msedge --headless=new --disable-gpu --remote-debugging-port=9222
 node tools/shots.mjs
 ```
 
-生成完会直接覆盖 `docs/shots/` 下的同名文件。
+生成完会直接覆盖 `docs/shots/` 下的同名文件（JPEG，质量 88）。
 
 ## 怎么用
 

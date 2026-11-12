@@ -17,7 +17,7 @@ ws.on('message', (raw) => {
 })
 const send = (m, p = {}) => new Promise((resolve, reject) => { const mid = ++id; pending.set(mid, { resolve, reject }); ws.send(JSON.stringify({ id: mid, method: m, params: p })) })
 const run = async (e) => (await send('Runtime.evaluate', { expression: e, returnByValue: true })).result.value
-const shot = async (path) => { const s = await send('Page.captureScreenshot', { format: 'png' }); writeFileSync(path, Buffer.from(s.data, 'base64')) }
+const shot = async (path) => { const s = await send('Page.captureScreenshot', { format: 'jpeg', quality: 88 }); writeFileSync(path, Buffer.from(s.data, 'base64')) }
 
 await send('Page.enable'); await send('Runtime.enable'); await send('Network.enable'); await send('Network.setCacheDisabled', { cacheDisabled: true })
 await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false })
@@ -32,7 +32,7 @@ async function runSet(dirName, mode) {
   for (let i = 0; i < RATIOS.length; i += 1) {
     await run(`(() => { const m = document.documentElement.scrollHeight - innerHeight; window.scrollTo(0, ${RATIOS[i]} * m); return m })()`)
     await sleep(2600)
-    await shot(`${dir}/b${i + 1}.png`)
+    await shot(`${dir}/b${i + 1}.jpg`)
   }
   console.log(dirName, 'done')
 }
