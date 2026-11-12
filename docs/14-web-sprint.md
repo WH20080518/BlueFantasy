@@ -42,7 +42,7 @@
 **验收**：拿任意一个 GLB 丢进 `public/models/`，页面能显示；删掉文件，自动回占位不白屏。
 
 > 11-11 进展：加载链路与绑定代码已落（`src/stage/loader.js`，`scene.js` 异步接入），Draco 解码器已本地化到 `public/draco/`。
-> 11-12 决定：隔舱板按实船 **12 道**，白名单已扩到 `bulkhead_12`；模型面数预算需重算（原 35,000 面可能不够）。
+> 11-12 决定：隔舱板按实船 **12 道**，白名单已扩到 `bulkhead_12`；面数上限已从 35,000 调到 **60,000**，理由见 `REPORT.md` 的预算说明。
 > 待真机/真模验证：示例 GLB 跑通、弱网首屏耗时，两项完成后再勾。
 
 ---
@@ -128,7 +128,7 @@
 1. 把导出的 `ship.glb` 放到 `public/models/ship.glb`。允许 Draco 压缩，解码器已在 `public/draco/` 本地，不依赖 CDN。
 2. 打开 `models/parts.json`，核对节点名。模型新增零件（例如 12 道隔舱板）就在这里补 `{ "name": "bulkhead_04", "assembled": [0,0,0], "exploded": [0,8,0] }`，然后跑 `npm run parts:sync` 同步到 `public/models/parts.json`。
 3. 跑 `npm run check:parts`。节点名不在白名单、`assembled`/`exploded` 不是 3 个数字、名称重复，都会逐条报错并退出 1。
-4. 跑 `npm run check:model`。默认上限 35,000 面、5 MB，超标会打印具体数值并退出 1。超标先减面或换 Draco，不要直接调高阈值。
+4. 跑 `npm run check:model`。默认上限 60,000 面、5 MB，超标会打印具体数值并退出 1。超标先减面或换 Draco，不要直接调高阈值。
 5. `npm run dev` 打开页面。零件被替换说明成功；看不到就开 Console 看 `[stage]` 开头的日志。删掉 `ship.glb` 刷新，应回到占位几何且不白屏。
 
 > 12 道隔舱板的模型：`parts.json` 里写满 12 条，`scene.js` 会为占位几何里没有的隔舱补建 Group，否则 GLB 里多出来的节点会被静默丢掉。

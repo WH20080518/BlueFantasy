@@ -122,7 +122,7 @@
 
 性能预算：
 
-- 总三角面 ≤ 35,000
+- 总三角面 ≤ 60,000
 - draw call ≤ 20
 - 桌面 60fps，移动端 ≥ 30fps
 - 像素比上限 `Math.min(devicePixelRatio, 2)`
@@ -233,7 +233,7 @@ BlueFantasy/
 - 首屏 HTML+CSS+关键字体 ≤ 300 KB（压缩后）
 - 首屏图片 ≤ 500 KB，优先 WebP/AVIF
 - 3D chunk 单独加载，不阻塞首屏
-- GLB ≤ 5 MB，总三角面 ≤ 35,000，draw call ≤ 20
+- GLB ≤ 5 MB，总三角面 ≤ 60,000，draw call ≤ 20
 - 纹理 ≤ 2 张 1024；不使用 HDR 环境贴图
 - 所有图片有 `alt`，装饰图 `alt=""`
 - 键盘可完成语言切换与 beat 导航

@@ -3,7 +3,7 @@
 //
 // 用法：
 //   node tools/check-model.mjs                       # 默认 public/models/ship.glb
-//   node tools/check-model.mjs a.glb --max-tris 35000 --max-mb 5
+//   node tools/check-model.mjs a.glb --max-tris 60000 --max-mb 5
 //
 // 超标或文件损坏时以 1 退出。
 
@@ -16,7 +16,7 @@ function flagValue(name, fallback) {
   const v = Number(argv[i + 1])
   return Number.isFinite(v) ? v : fallback
 }
-const maxTris = flagValue('--max-tris', 35000)
+const maxTris = flagValue('--max-tris', 60000)
 const maxMB = flagValue('--max-mb', 5)
 
 const flagNames = new Set(['--max-tris', '--max-mb'])
