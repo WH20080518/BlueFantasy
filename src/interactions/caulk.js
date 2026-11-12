@@ -1,5 +1,6 @@
 // 补缝三步状态机（beat 3）。顺序：榫卯 → 铁钉 → 捻缝。
-// 顺序错：caulk_layer 渗水色闪烁 + 提示，栈清空。三步完成：缝闭合。
+// 顺序错：caulk_layer 渗水色闪烁 + 提示，但已完成步骤保留（is-done 不清）。
+// 提示由 UI 在 900ms 后自动清除。三步完成：缝闭合。
 
 import { PALETTE } from '../stage/placeholder.js'
 
@@ -41,9 +42,9 @@ export function createCaulk(refs, reducedMotion) {
           done = true
           return 'done'
         }
-        return 'progress'
+        return 'step'
       }
-      stack = []
+      // 顺序错：只闪渗水提示，不抹掉已完成的步骤（按钮 is-done 保留）。
       flashT = 1
       return 'wrong'
     },

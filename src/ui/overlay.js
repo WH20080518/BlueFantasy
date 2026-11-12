@@ -24,7 +24,21 @@ function inlineMarkup(parent, text) {
   })
 }
 
-export function createOverlay({ reducedMotion, fallbackMode, handlers }) {
+// 交互面板内的补充文案（重来按钮、漏水状态）。内容文件不在本角色改动范围，故就近放在 UI 层。
+const CAULK_RESET_LABEL = { zh: '重来', en: 'Reset' }
+const CAULK_RESET_ARIA = { zh: '重新开始补缝', en: 'Restart caulking' }
+const FLOOD_STATUS = {
+  'with-bulkheads': {
+    zh: '有水密隔舱：一个舱进水，船体倾斜后稳住。',
+    en: 'With bulkheads: one hold floods; the hull lists and settles.',
+  },
+  'without-bulkheads': {
+    zh: '无隔舱：水沿船体漫过，船身下沉。',
+    en: 'Without bulkheads: water runs the length of the hull and the ship sinks lower.',
+  },
+}
+
+export function createOverlay({ reducedMotion, fallbackMode, handlers, initialLang = 'zh' }) {
   const $ = (id) => document.getElementById(id)
   const el = {
     stage: $('stage'),
@@ -68,7 +82,24 @@ export function createOverlay({ reducedMotion, fallbackMode, handlers }) {
     nextEl: el.quizNext,
   })
 
-  let lang = 'zh'
+
+  // 漏水状态读屏区：index.html 不在本次改动范围，运行时补一个 role=status 元素。
+  const floodStatus = document.createElement('p')
+  floodStatus.id = 'flood-status'
+  floodStatus.className = 'caulk-status'
+  floodStatus.setAttribute('role', 'status')
+  floodStatus.setAttribute('aria-live', 'polite')
+  el.floodUI.appendChild(floodStatus)
+  el.caulkStatus.setAttribute('aria-live', 'polite')
+
+  // 「重来」按钮：三步完成后显示，点击回到补缝前状态。
+  const caulkReset = document.createElement('button')
+  caulkReset.type = 'button'
+  caulkReset.className = 'caulk-step caulk-reset'
+  caulkReset.hidden = true
+  el.caulkSteps.insertAdjacentElement('afterend', caulkReset)
+
+  let lang = initialLang === 'en' ? 'en' : 'zh'
   let beatIndex = -1
 let lastInteractionBeat = -1
   let swapToken = 0
@@ -77,6 +108,26 @@ let lastInteractionBeat = -1
   // 交互 UI 状态：语言切换 / 降级重绘后据此恢复，而不是重置成默认值。
   let caulkUIState = { stack: [], done: false, status: '' }
   let floodActiveName = 'with-bulkheads'
+  let caulkErrorTimer = 0
+
+  function clearCaulkErrorTimer() {
+    if (caulkErrorTimer) {
+      window.clearTimeout(caulkErrorTimer)
+      caulkErrorTimer = 0
+    }
+  }
+
+  // 错误提示 900ms 后自动消失；只清 status，不动 stack/done，按钮 is-done 保留。
+  function scheduleCaulkErrorClear() {
+    clearCaulkErrorTimer()
+    caulkErrorTimer = window.setTimeout(() => {
+      caulkErrorTimer = 0
+      if (caulkUIState.status === 'wrong') {
+        caulkUIState = { ...caulkUIState, status: '' }
+        renderCaulkUI()
+      }
+    }, 900)
+  }
 
   const t = (v) => v[lang]
 
@@ -100,6 +151,10 @@ let lastInteractionBeat = -1
     el.replay.textContent = t(ui.replay)
     el.credits.textContent = t(ui.credits)
     el.termsTitle.textContent = t(ui.termsTitle)
+    caulkReset.textContent = t(CAULK_RESET_LABEL)
+    caulkReset.setAttribute('aria-label', t(CAULK_RESET_ARIA))
+    caulkReset.disabled = fMode
+    caulkReset.setAttribute('aria-disabled', String(fMode))
 
     el.caulkSteps.innerHTML = ''
     ui.caulk.steps.forEach((s, i) => {
@@ -150,7 +205,16 @@ let lastInteractionBeat = -1
 
   function renderCaulkUI() {
     const buttons = [...el.caulkSteps.children]
-    buttons.forEach((b, i) => b.classList.toggle('is-done', caulkUIState.done || caulkUIState.stack.includes(i)))
+    const locked = caulkUIState.done || fMode
+    const focusWasOnStep = el.caulkSteps.contains(document.activeElement)
+    buttons.forEach((b, i) => {
+      b.classList.toggle('is-done', caulkUIState.done || caulkUIState.stack.includes(i))
+      b.disabled = locked
+      b.setAttribute('aria-disabled', String(locked))
+    })
+    caulkReset.hidden = !caulkUIState.done
+    // 完成时第三步按钮变 disabled 会丢焦点，把焦点交给刚出现的「重来」。
+    if (caulkUIState.done && focusWasOnStep) caulkReset.focus()
     if (caulkUIState.status === 'wrong') {
       el.caulkStatus.textContent = t(ui.caulk.wrongOrder)
       el.caulkStatus.className = 'caulk-status is-error'
@@ -206,6 +270,7 @@ let lastInteractionBeat = -1
     el.codaUI.hidden = beat.interaction !== 'replay'
 
     if (beat.interaction === 'caulk') {
+      clearCaulkErrorTimer()
       caulkUIState = { stack: [], done: false, status: '' }
       renderCaulkUI()
     }
@@ -239,10 +304,18 @@ let lastInteractionBeat = -1
   function setFloodActive(name) {
     floodActiveName = name
     floodBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.flood === name)))
+    const text = FLOOD_STATUS[name]
+    floodStatus.textContent = text ? t(text) : ''
   }
 
   el.replay.addEventListener('click', () => handlers.onReplay())
   el.langToggle.addEventListener('click', () => handlers.onLangToggle())
+  caulkReset.addEventListener('click', () => {
+    handlers.onCaulkReset()
+    // 重来按钮随即隐藏，焦点交给第一个可用步骤，键盘用户不会掉回 body。
+    const first = el.caulkSteps.querySelector('.caulk-step:not(:disabled)')
+    if (first) first.focus()
+  })
   floodBtns.forEach((b) => b.addEventListener('click', () => handlers.onFlood(b.dataset.flood)))
 
   renderStatic()
@@ -277,11 +350,18 @@ let lastInteractionBeat = -1
       el.bar.setAttribute('aria-valuenow', String(Math.round(p * 100)))
     },
     caulkFeedback(result, stack, done) {
+      clearCaulkErrorTimer()
       caulkUIState = {
         stack: [...stack],
         done,
         status: result === 'wrong' ? 'wrong' : result === 'done' ? 'done' : '',
       }
+      renderCaulkUI()
+      if (result === 'wrong') scheduleCaulkErrorClear()
+    },
+    resetCaulk() {
+      clearCaulkErrorTimer()
+      caulkUIState = { stack: [], done: false, status: '' }
       renderCaulkUI()
     },
     setFloodActive,

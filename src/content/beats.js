@@ -13,8 +13,8 @@ export const beats = [
         '但我们把一艘船拆开之后，看到的东西比这句话复杂。',
       ],
       en: [
-        'The claim is everywhere, and it is romantic: wood holding wood, no iron at all.',
-        'Take a ship apart and the picture gets more interesting.',
+        'You hear it everywhere, and it is a romantic idea: wood holding wood, with no iron at all.',
+        'Take a ship apart, and the picture gets more interesting.',
       ],
     },
     stage: { nodes: ['hull_shell', 'ship_deck'], camera: 'wide', motion: 'idle-spin' },
@@ -32,8 +32,8 @@ export const beats = [
         '它们不靠胶，也不靠钉，靠的是形状本身互相卡住。',
       ],
       en: [
-        'One piece of wood leaves a tongue. The other leaves a matching socket.',
-        'No glue, no nail — the shape itself does the holding.',
+        'A tenon is a tongue left on one timber; a mortise is the socket cut to receive it.',
+        'No glue, no nails — the shape itself holds.',
       ],
     },
     stage: { nodes: ['joint_tenon', 'joint_mortise'], camera: 'joint', motion: 'explode' },
@@ -52,11 +52,11 @@ export const beats = [
         '所以真正的做法是「榫合钉接」：榫卯定位，铁钉或木钉加固，再用桐油灰拌麻丝把缝捻死。',
       ],
       en: [
-        'A ship is not a cabinet. It goes into water, takes waves, and stays wet for decades.',
-        'So the real method is mortise-and-tenon **plus** fastening: tenons locate, iron or wooden nails lock, and putty with hemp caulks the seam shut.',
+        'A ship is not a cabinet. It goes into the water, takes waves, and stays wet for decades.',
+        'So the real method is joinery **plus** fastening: tenons locate the plank, iron or wooden nails lock it, and tung-oil putty worked with hemp caulks the seam shut.',
       ],
     },
-    stage: { nodes: ['plank_seam', 'nail_set', 'caulk_layer'], camera: 'seam', motion: 'layers' },
+    stage: { nodes: ['plank_seam', 'nail_set', 'caulk_layer', 'treenail'], camera: 'seam', motion: 'layers' },
     interaction: 'caulk',
     fallback: 'svg/e3-seam-section.svg',
     stageLabel: { zh: '舞台：一段船壳板接缝的剖面', en: 'Stage: cross-section of a plank seam' },
@@ -73,7 +73,7 @@ export const beats = [
       ],
       en: [
         'Transverse bulkheads cut the hull into compartments that do not connect.',
-        'They carry cargo — and they decide whether the ship still floats after it is holed.',
+        'They carry cargo, and they decide whether the ship still floats once it is holed.',
       ],
     },
     stage: {
@@ -89,7 +89,7 @@ export const beats = [
     id: 'b5',
     progress: [0.6, 0.8],
     eyebrow: { zh: '实验', en: 'Test' },
-    title: { zh: '一个舱破了，船还在', en: 'One compartment floods. The ship stays up.' },
+    title: { zh: '一个舱破了，船还在', en: 'One compartment floods. The ship stays afloat.' },
     body: {
       zh: [
         '水灌满一个舱，浮力少了一点，船倾斜，然后稳住。',
@@ -97,7 +97,7 @@ export const beats = [
       ],
       en: [
         'Water fills a single hold. The ship loses some buoyancy, lists, then settles.',
-        'Remove the bulkheads and the same breach runs the length of the hull.',
+        'Take the bulkheads out and the same breach runs the length of the hull.',
       ],
     },
     stage: {
@@ -120,8 +120,8 @@ export const beats = [
         '翻译也是一次榫合：两边的形状不完全一样，但必须咬得住。',
       ],
       en: [
-        'English has no single word for 榫卯. The closest is mortise-and-tenon joint.',
-        'Translation is joinery too: the two sides never match exactly, and still have to hold.',
+        'English has no single word for 榫卯. The closest is *mortise-and-tenon joint*.',
+        'Translation is joinery too: the two sides never match exactly, and they still have to hold.',
       ],
     },
     stage: {
@@ -191,12 +191,12 @@ export const ui = {
   },
   termsTitle: { zh: '术语对照', en: 'Glossary' },
   termType: {
-    直译: { zh: '直译', en: 'direct' },
+    直译: { zh: '直译', en: 'literal' },
     解释译: { zh: '解释译', en: 'explained' },
   },
   replay: { zh: '重新看一遍', en: 'Watch again' },
   credits: {
     zh: '参考：泉州湾宋代海船、南海I号、华光礁I号等考古资料与造船史研究（见项目文档）。',
-    en: 'Sources: archaeology of the Quanzhou and Nanhai I wrecks and shipbuilding histories (see project docs).',
+    en: 'Sources: excavation reports on the Quanzhou and Nanhai I wrecks, and histories of Chinese shipbuilding (see project docs).',
   },
 }

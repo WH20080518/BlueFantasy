@@ -8,9 +8,36 @@ import { introCopy } from './content/intro.js'
 // 滚动只在 requestAnimationFrame 里读一次 scrollY，不在 scroll 回调里遍历 DOM。
 
 const base = import.meta.env.BASE_URL
-const no3d = new URLSearchParams(window.location.search).has('no3d')
+const params = new URLSearchParams(window.location.search)
+const no3d = params.has('no3d')
 const reducedMQ = window.matchMedia('(prefers-reduced-motion: reduce)')
 const reducedMotion = () => reducedMQ.matches
+
+const LANG_KEY = 'bf.lang'
+const isLang = (v) => v === 'zh' || v === 'en'
+
+function readStoredLang() {
+  try {
+    const v = window.localStorage.getItem(LANG_KEY)
+    return isLang(v) ? v : null
+  } catch {
+    // 隐私模式 / 禁用存储时不影响阅读
+    return null
+  }
+}
+
+function storeLang(v) {
+  try {
+    window.localStorage.setItem(LANG_KEY, v)
+  } catch {
+    /* 忽略写入失败 */
+  }
+}
+
+// 语言优先级：URL ?lang= → localStorage → 中文。document lang 同步设置。
+const urlLang = params.get('lang')
+let lang = isLang(urlLang) ? urlLang : readStoredLang() || 'zh'
+document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en'
 
 const story = document.getElementById('story')
 const stageEl = document.getElementById('stage')
@@ -31,7 +58,6 @@ function measureVH() {
   vhBaseline = h > 0 ? h : window.innerHeight
 }
 
-let lang = 'zh'
 let currentBeat = -1
 let stage3d = null
 let threeFailed = false
@@ -102,17 +128,24 @@ function positionLabel() {
 const overlay = createOverlay({
   reducedMotion,
   fallbackMode: no3d || !webglAvailable(),
+  initialLang: lang,
   handlers: {
     onLangToggle() {
       lang = lang === 'zh' ? 'en' : 'zh'
       document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en'
+      storeLang(lang)
       overlay.setLang(lang)
       if (fallback && currentBeat >= 0) fallback.setBeat(beats[currentBeat], lang)
+      scheduleUrlWrite()
     },
     onCaulkStep(step) {
       if (!stage3d) return
       const result = stage3d.caulk.push(step)
       overlay.caulkFeedback(result, stage3d.caulk.stack, stage3d.caulk.done)
+    },
+    onCaulkReset() {
+      if (stage3d) stage3d.caulk.reset()
+      overlay.resetCaulk()
     },
     onFlood(name) {
       if (!stage3d) return
@@ -125,12 +158,34 @@ const overlay = createOverlay({
   },
 })
 
+/* ---------- URL 状态（?beat=N&lang=zh|en） ---------- */
+
+let urlTimer = 0
+
+function writeUrlState() {
+  if (currentBeat < 0) return
+  const url = new URL(window.location.href)
+  url.searchParams.set('beat', String(currentBeat + 1))
+  url.searchParams.set('lang', lang)
+  if (url.href !== window.location.href) window.history.replaceState(null, '', url)
+}
+
+// 节流：最多每 300ms 写回一次，滚动过程中不逐帧 replaceState。
+function scheduleUrlWrite() {
+  if (urlTimer) return
+  urlTimer = window.setTimeout(() => {
+    urlTimer = 0
+    writeUrlState()
+  }, 300)
+}
+
 function onBeat(i) {
   currentBeat = i
   clearLabel()
   overlay.renderBeat(i)
   if (stage3d) stage3d.enterBeat(i)
   if (fallback) fallback.setBeat(beats[i], lang)
+  scheduleUrlWrite()
 }
 
 /* ---------- 指针与键盘 ---------- */
@@ -143,9 +198,16 @@ canvas.addEventListener('pointerdown', (e) => {
 })
 
 stageEl.addEventListener('keydown', (e) => {
-  if (!stage3d) return
-  // 只在舞台本身有焦点时接管 Tab/Enter/Escape；焦点在内部按钮上时放行，避免抢走键盘导航
+  // 只在舞台本身有焦点时接管键盘；焦点在内部按钮上时放行，避免抢走键盘导航
   if (e.target !== stageEl) return
+  // Escape 任何 beat / 降级模式下都退出舞台焦点。
+  if (e.key === 'Escape') {
+    if (stage3d) stage3d.clearSelection()
+    clearLabel()
+    stageEl.blur()
+    return
+  }
+  if (!stage3d) return
   const beat = beats[currentBeat]
   if (!beat || !beat.pick) return
   if (e.key === 'Tab') {
@@ -160,10 +222,6 @@ stageEl.addEventListener('keydown', (e) => {
     const focused = stage3d.focusedPart()
     if (focused) onPick(focused)
     e.preventDefault()
-  } else if (e.key === 'Escape') {
-    stage3d.clearSelection()
-    clearLabel()
-    stageEl.blur()
   }
 })
 
@@ -266,10 +324,53 @@ function enterSite() {
 introBtn?.addEventListener('click', enterSite)
 presentIntro()
 
+
+/* ---------- 深链 ---------- */
+
+// ?beat=N（1 起）：定位到该 beat 的中点。要等布局结算，浏览器还可能把滚动还原成 0。
+function applyInitialLocation() {
+  window.__dl = (window.__dl || 0) + 1
+  const raw = new URLSearchParams(window.location.search).get('beat')
+  if (raw === null) return
+  const n = Number.parseInt(raw, 10)
+  if (!Number.isFinite(n) || n < 1) return
+  const i = Math.min(beats.length, n) - 1
+  const beat = beats[i]
+  const mid = (beat.progress[0] + beat.progress[1]) / 2
+  const max = document.documentElement.scrollHeight - vhBaseline
+  if (window.__dlLog !== false) console.info("[deep] max=" + max)
+  if (max > 0) window.scrollTo({ top: Math.round(max * mid), behavior: 'auto' })
+}
 /* ---------- 启动 ---------- */
+
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual'
+
+// 深链需要在文档高度结算后再滚；这里等真实可滚高度出现再定位一次
+function scheduleDeepLink() {
+  let tries = 0
+  const tick = () => {
+    const max = document.documentElement.scrollHeight - vhBaseline
+    if (max > 100) {
+      applyInitialLocation()
+      return
+    }
+    if (tries++ < 90) requestAnimationFrame(tick)
+  }
+  requestAnimationFrame(tick)
+}
 
 measureVH()
 layout()
+scheduleDeepLink()
+
+// load 之后再定位一次：首帧时文档高度可能还没结算
+window.addEventListener('load', () => {
+  requestAnimationFrame(applyInitialLocation)
+  // 浏览器的滚动还原/布局结算可能晚于 load，再补两次
+  setTimeout(applyInitialLocation, 120)
+  setTimeout(applyInitialLocation, 400)
+})
+
 window.addEventListener('resize', () => {
   measureVH()
   layout()
