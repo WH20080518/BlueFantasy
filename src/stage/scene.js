@@ -67,6 +67,12 @@ function sharedMaterial(color) {
 // - 子物体自身位移归零，单位按包围盒判断（>100 视为毫米，整树 0.001）
 // 返回成功接上的零件数。
 function bindRealMeshes(gltf, nodes, { unit } = {}) {
+  // 这些零件被交互模块持有网格引用（caulk 的上下板、flood 的隔舱材质、joint 的爆炸件）。
+  // 直接替换会让 refs 指向已移除的网格，表现为「点了没反应」。P2 阶段先保留占位。
+  const KEEP_PLACEHOLDER = new Set([
+    'plank_seam', 'nail_set', 'caulk_layer',
+    'joint_tenon', 'joint_mortise', 'treenail',
+  ])
   const root = gltf?.scene ?? gltf?.scenes?.[0]
   if (!root) return 0
 
@@ -99,6 +105,7 @@ function bindRealMeshes(gltf, nodes, { unit } = {}) {
 
   let bound = 0
   nodes.forEach((group, name) => {
+    if (KEEP_PLACEHOLDER.has(name)) return
     const source = root.getObjectByName(name)
     if (!source) return
 
@@ -265,6 +272,18 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       nodeSetFor(i).forEach((n) => visibleSet.add(n))
       if (blend > 0 && next) next.stage.nodes.forEach((n) => visibleSet.add(n))
       parts.setVisible(visibleSet)
+
+      // 剖舱与漏水两屏需要看进船体：有真模型时把外壳调透明，其余屏恢复不透明
+      const hullNode = nodes.get('hull_shell')
+      if (hullNode) {
+        const seeThrough = beat.id === 'b4' || beat.id === 'b5'
+        hullNode.traverse((obj) => {
+          if (!obj.isMesh || !obj.material) return
+          obj.material.transparent = seeThrough
+          obj.material.opacity = seeThrough ? 0.32 : 1
+          obj.material.depthWrite = !seeThrough
+        })
+      }
 
       // 相机
       rig.update(beat.stage.camera, next ? next.stage.camera : null, blend, lt, dt)

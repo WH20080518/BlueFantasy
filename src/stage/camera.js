@@ -10,8 +10,8 @@ export const CAMERAS = {
   wide: { position: [88, 34, 108], target: [0, -2, 0], fov: 42 },
   joint: { position: [26, 14, 34], target: [0, 0, 0], fov: 40 },
   seam: { position: [2, 6, 46], target: [0, -1, 0], fov: 40 },
-  cutaway: { position: [80, 55, 110], target: [0, -3, 0], fov: 44 },
-  flood: { position: [20, 18, 148], target: [0, -4, 0], fov: 44 },
+  cutaway: { position: [68, 46, 94], target: [0, -3, 0], fov: 44 },
+  flood: { position: [17, 15, 126], target: [0, -4, 0], fov: 44 },
   terms: { position: [96, 30, 96], target: [0, 0, 0], fov: 44 },
   away: { position: [150, 64, 170], target: [0, 2, 0], fov: 50 },
 }
