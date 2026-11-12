@@ -129,11 +129,18 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   scene.add(shipGroup, detailGroup, shadow)
 
   // parts.json（可选）：应用装配/爆炸位
+  // 实船 12 道隔舱板时，占位几何只有 3 道；这里按 parts.json 补建缺失的 Group，
+  // 否则 GLB 里多出来的节点没有容器可挂。
   const spec = await loadPartsSpec(base)
   if (Array.isArray(spec)) {
     spec.forEach((p) => {
-      const g = nodes.get(p.name)
-      if (!g) return
+      let g = nodes.get(p.name)
+      if (!g) {
+        g = new THREE.Group()
+        g.name = p.name
+        shipGroup.add(g)
+        nodes.set(p.name, g)
+      }
       if (Array.isArray(p.assembled)) g.position.fromArray(p.assembled)
       if (Array.isArray(p.exploded)) g.userData.exploded = p.exploded
     })

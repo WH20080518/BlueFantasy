@@ -1,16 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "BlueFantasy parts.json",
-  "description": "GLB 节点名与装配/爆炸位。每个零件对应场景中的一个 Group。",
+  "description": "GLB 节点名与装配/爆炸位。每个零件对应场景中的一个 Group。隔舱板按实船 12 道。",
   "type": "array",
   "items": {
     "type": "object",
     "additionalProperties": false,
-    "required": [
-      "name",
-      "assembled",
-      "exploded"
-    ],
+    "required": ["name", "assembled", "exploded"],
     "properties": {
       "name": {
         "type": "string",
@@ -23,6 +19,15 @@
           "bulkhead_01",
           "bulkhead_02",
           "bulkhead_03",
+          "bulkhead_04",
+          "bulkhead_05",
+          "bulkhead_06",
+          "bulkhead_07",
+          "bulkhead_08",
+          "bulkhead_09",
+          "bulkhead_10",
+          "bulkhead_11",
+          "bulkhead_12",
           "plank_seam",
           "treenail",
           "iron_nail",
@@ -31,25 +36,9 @@
           "joint_mortise"
         ]
       },
-      "assembled": {
-        "type": "array",
-        "items": {
-          "type": "number"
-        },
-        "minItems": 3,
-        "maxItems": 3
-      },
-      "exploded": {
-        "type": "array",
-        "items": {
-          "type": "number"
-        },
-        "minItems": 3,
-        "maxItems": 3
-      },
-      "label": {
-        "type": "string"
-      }
+      "assembled": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+      "exploded": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
+      "label": { "type": "string" }
     }
   }
 }

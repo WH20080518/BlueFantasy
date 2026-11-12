@@ -12,17 +12,15 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 
 // 节点名白名单：必须与 src/stage/placeholder.js 及 GLB 导出名一致。
-// 注意：bulkhead 目前只到 03，与占位几何一致；若模型按实船 12 道隔舱板做，
-// 先与内容组对齐，再把这里扩到 bulkhead_12。
+// 隔舱板按实船 12 道（与 D 的事实核查对齐）；占位几何目前只建了 3 道，
+// 多出来的名字允许出现在 parts.json 里，不会被占位场景使用。
 const ALLOWED = new Set([
   'hull_shell',
   'ship_deck',
   'keel',
   'stem',
   'sternpost',
-  'bulkhead_01',
-  'bulkhead_02',
-  'bulkhead_03',
+  ...Array.from({ length: 12 }, (_, i) => `bulkhead_${String(i + 1).padStart(2, '0')}`),
   'plank_seam',
   'treenail',
   'iron_nail',

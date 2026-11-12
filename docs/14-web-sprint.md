@@ -31,7 +31,7 @@
 **目标**：模型交付当天，30 分钟内完成替换并上线。
 
 - [x] 写 `models/parts.json` 的 schema 与校验脚本（节点名、assembled/exploded 数组、必填字段），命名对不上直接报错
-- [x] 接 `GLTFLoader` + Draco 解码，路径 `public/models/`；加载中显示进度，失败自动落 SVG 降级
+- [x] 接 `GLTFLoader` + Draco 解码，路径 `public/models/`；加载中显示进度；模型缺失/超时保留 3D 占位，只有 WebGL 不可用或场景初始化失败才落 SVG
 - [x] 补 `bindRealMeshes()`：按 `name` 把 GLB 网格塞进现有 Group，保留装配/爆炸变换
 - [x] 预算检查脚本：三角面数、文件体积、材质数、draw call 粗算，一条命令出报告
 - [ ] 用免费 GLB（比如 Khronos 示例模型）先跑通全链路，证明「不是等模型才能测」
@@ -42,6 +42,7 @@
 **验收**：拿任意一个 GLB 丢进 `public/models/`，页面能显示；删掉文件，自动回占位不白屏。
 
 > 11-11 进展：加载链路与绑定代码已落（`src/stage/loader.js`，`scene.js` 异步接入），Draco 解码器已本地化到 `public/draco/`。
+> 11-12 决定：隔舱板按实船 **12 道**，白名单已扩到 `bulkhead_12`；模型面数预算需重算（原 35,000 面可能不够）。
 > 待真机/真模验证：示例 GLB 跑通、弱网首屏耗时，两项完成后再勾。
 
 ---
