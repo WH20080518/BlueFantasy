@@ -91,9 +91,11 @@ function bindRealMeshes(gltf, nodes, { unit } = {}) {
     console.warn('[stage] parts.json 未声明 unit，按包围盒推断；建议写 "unit": "m"')
   }
 
+  // 建模尺度：100 单位 ≈ 30 m 实船（1 单位 ≈ 0.3 m）。上限放到 150，正常模型不刷警告；
+  // 真正的单位写错（mm/cm 当 m）会落到 0.1 或 1 的量级，仍然会被这条抓到。
   const scaledMax = maxDim * unitScale
-  if (scaledMax < 20 || scaledMax > 40) {
-    console.warn('[stage] 模型最大边 ' + scaledMax.toFixed(1) + ' m，超出船体 20–40 m 预期，检查 unit 或模型比例')
+  if (scaledMax < 20 || scaledMax > 150) {
+    console.warn(`[stage] 模型最大边 ${scaledMax.toFixed(1)} m，超出船体 20–150 m 预期，检查 parts.json 的 unit 或模型比例`)
   }
 
   const worldPos = new THREE.Vector3()
