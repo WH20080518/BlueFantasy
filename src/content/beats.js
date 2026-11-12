@@ -56,7 +56,7 @@ export const beats = [
         'So the real method is mortise-and-tenon **plus** fastening: tenons locate, iron or wooden nails lock, and putty with hemp caulks the seam shut.',
       ],
     },
-    stage: { nodes: ['plank_seam', 'nail_set', 'caulk_layer'], camera: 'seam', motion: 'layers' },
+    stage: { nodes: ['plank_seam', 'nail_set', 'caulk_layer', 'treenail'], camera: 'seam', motion: 'layers' },
     interaction: 'caulk',
     fallback: 'svg/e3-seam-section.svg',
     stageLabel: { zh: '舞台：一段船壳板接缝的剖面', en: 'Stage: cross-section of a plank seam' },

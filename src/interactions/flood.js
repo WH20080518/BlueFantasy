@@ -70,6 +70,12 @@ export function createFlood(refs, reducedMotion) {
           bulkMats.push(o.material)
         }),
       )
+      // 若模型在淡出完成后才加载，新材质要立刻回落当前状态，
+      // 否则 update() 因 target===null 提前返回，隔舱会一直是不透明的
+      bulkMats.forEach((m) => {
+        m.opacity = state.bulkOpacity
+        m.depthWrite = state.bulkOpacity > 0.5
+      })
     },
     reset() {
       active = null
