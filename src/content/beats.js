@@ -83,7 +83,7 @@ export const beats = [
     },
     pick: ['bulkhead_01', 'bulkhead_02', 'bulkhead_03', 'bulkhead_04', 'bulkhead_05', 'bulkhead_06', 'bulkhead_07', 'bulkhead_08', 'bulkhead_09', 'bulkhead_10', 'bulkhead_11', 'bulkhead_12'],
     fallback: 'svg/e4-bulkhead-plan.svg',
-    stageLabel: { zh: '舞台：剖切的船体，露出三道横向隔舱板', en: 'Stage: cutaway hull showing three transverse bulkheads' },
+    stageLabel: { zh: '舞台：剖切的船体，露出十二道横向隔舱板', en: 'Stage: cutaway hull showing twelve transverse bulkheads' },
   },
   {
     id: 'b5',
