@@ -98,7 +98,7 @@ export function createFlood(refs, reducedMotion) {
         }
         return
       }
-      const k = 1 - Math.exp(-dt * 4.5)
+      const k = 1 - Math.exp(-dt * 5.6)
       let settled = true
       for (const key of Object.keys(target)) {
         const next = state[key] + (target[key] - state[key]) * k
