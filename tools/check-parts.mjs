@@ -22,6 +22,8 @@ const ALLOWED = new Set([
   'sternpost',
   ...Array.from({ length: 12 }, (_, i) => `bulkhead_${String(i + 1).padStart(2, '0')}`),
   'plank_seam',
+  'nail_set',
+  'caulk_layer',
   'treenail',
   'iron_nail',
   'caulking_seam',
