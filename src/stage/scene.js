@@ -10,13 +10,18 @@ import { loadShip } from './loader.js'
 
 // parts.json 加载器：models/parts.json 存在则按 name 绑定装配/爆炸位，
 // 否则（或解析失败）用占位几何。真 GLB 到位后在 bindRealMeshes 里接。
-async function loadPartsSpec(base) {
+async function loadPartsSpec(base, timeoutMs = 8000) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const res = await fetch(`${base}models/parts.json`)
+    const res = await fetch(`${base}models/parts.json`, { signal: controller.signal })
     if (!res.ok) return null
     return await res.json()
   } catch {
+    // 缺失、超时、解析失败都静默回落到占位几何
     return null
+  } finally {
+    clearTimeout(timer)
   }
 }
 
@@ -98,7 +103,7 @@ function clampedDPR() {
   return Math.min(window.devicePixelRatio || 1, 1.6)
 }
 
-export async function createStage({ canvas, beats, reducedMotion, base }) {
+export async function createStage({ canvas, beats, reducedMotion, base, onModelFail }) {
   const renderer = new THREE.WebGLRenderer({
     canvas,
     alpha: true,
@@ -136,7 +141,13 @@ export async function createStage({ canvas, beats, reducedMotion, base }) {
 
   // 真模型异步接入：不阻塞首屏，失败/超时保持占位几何。
   let realModel = null
-  loadShip(`${base}models/ship.glb`, { base })
+  loadShip(`${base}models/ship.glb`, {
+    base,
+    // 仅“文件存在但解析失败”上报给上层；缺失/超时属于模型未交付，保持占位。
+    onError: (reason) => {
+      if (reason === 'error' && onModelFail) onModelFail(reason)
+    },
+  })
     .then((gltf) => {
       if (!gltf || realModel) return
       realModel = gltf
