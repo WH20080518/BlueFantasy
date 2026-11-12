@@ -97,3 +97,6 @@ pnpm-lock.yaml
 
 # parts.json：public 下由 npm run parts:sync 生成，唯一源头是 models/parts.json
 public/models/parts.json
+
+# 建模排查截图：按类别归档在本地，不进仓库（体积大且非交付物）
+docs/shots/model-qa/
