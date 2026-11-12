@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { buildPlaceholders } from './placeholder.js'
 import { CameraRig, CAMERAS } from './camera.js'
 import { Parts } from './parts.js'
@@ -121,14 +122,25 @@ function bindRealMeshes(gltf, nodes, { unit } = {}) {
     clone.quaternion.identity()
     clone.scale.set(1, 1, 1)
 
-    const material = sharedMaterial(paletteFor(name))
+    // 优先用 GLB 自带材质（含风化木纹贴图）；只有缺材质时才回退到项目四色。
+    const fallback = sharedMaterial(paletteFor(name))
     // 船体是开口放样：单面渲染会只剩朝向相机的一半。外壳与甲板强制双面。
     const twoSided = name === 'hull_shell' || name === 'ship_deck'
-    const mat = twoSided ? material.clone() : material
-    if (twoSided) mat.side = THREE.DoubleSide
+    const sidedCache = new Map()
     clone.traverse((obj) => {
       if (!obj.isMesh) return
-      obj.material = mat
+      const base = obj.material || fallback
+      if (twoSided) {
+        let sided = sidedCache.get(base)
+        if (!sided) {
+          sided = base.clone()
+          sided.side = THREE.DoubleSide
+          sidedCache.set(base, sided)
+        }
+        obj.material = sided
+      } else {
+        obj.material = base
+      }
       obj.castShadow = false
       obj.receiveShadow = false
     })
@@ -154,27 +166,37 @@ function smoothstep(t) {
 }
 
 function clampedDPR() {
-  return Math.min(window.devicePixelRatio || 1, 1.6)
+  return Math.min(window.devicePixelRatio || 1, 2)
 }
 
 export async function createStage({ canvas, beats, reducedMotion, base, onModelFail }) {
   const renderer = new THREE.WebGLRenderer({
     canvas,
     alpha: true,
-    antialias: (window.devicePixelRatio || 1) < 1.5,
+    antialias: true,
     powerPreference: 'high-performance',
   })
   renderer.setPixelRatio(clampedDPR())
   renderer.setClearColor(0x000000, 0)
+  // 纯色/贴图材质都需要色调映射与 sRGB 输出，否则发灰发脏。
+  renderer.toneMapping = THREE.ACESFilmicToneMapping
+  renderer.toneMappingExposure = 0.95
+  renderer.outputColorSpace = THREE.SRGBColorSpace
 
   const scene = new THREE.Scene()
   scene.fog = new THREE.Fog(0x3a2a20, 220, 560)
 
+  // 环境探针：给木料一点漫反射层次，纯靠平行光会显得平。
+  const pmrem = new THREE.PMREMGenerator(renderer)
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
+  scene.environmentIntensity = 0.4
+  pmrem.dispose()
+
   const camera = new THREE.PerspectiveCamera(CAMERAS.wide.fov, 1, 0.1, 1000)
   const rig = new CameraRig(camera, reducedMotion)
 
-  scene.add(new THREE.HemisphereLight(0xe9e3d6, 0x3a2a1d, 1.7))
-  const sun = new THREE.DirectionalLight(0xfff2dd, 2.4)
+  scene.add(new THREE.HemisphereLight(0xe9e3d6, 0x3a2a1d, 1.05))
+  const sun = new THREE.DirectionalLight(0xfff2dd, 1.5)
   sun.position.set(60, 80, 40)
   scene.add(sun)
 
