@@ -207,14 +207,17 @@ function applyViewMode() {
   }
 }
 
+// 开场页在进站前，站内语言还没确定，先按浏览器语言选一版
+const introLang = (navigator.language || 'zh').toLowerCase().startsWith('zh') ? 'zh' : 'en'
+
 function presentIntro() {
   if (!introEl || !introBtn) return
-  document.getElementById('intro-eyebrow').textContent = introCopy.eyebrow.zh
-  document.getElementById('intro-title').textContent = introCopy.title.zh
-  document.getElementById('intro-sub').textContent = introCopy.sub.zh
-  document.getElementById('intro-note').textContent = introCopy.note.zh
-  introBtn.textContent = introCopy.start.zh
-  introBtn.setAttribute('aria-label', introCopy.startAria.zh)
+  document.getElementById('intro-eyebrow').textContent = introCopy.eyebrow[introLang]
+  document.getElementById('intro-title').textContent = introCopy.title[introLang]
+  document.getElementById('intro-sub').textContent = introCopy.sub[introLang]
+  document.getElementById('intro-note').textContent = introCopy.note[introLang]
+  introBtn.textContent = introCopy.start[introLang]
+  introBtn.setAttribute('aria-label', introCopy.startAria[introLang])
 
   const modeBtns = [...document.querySelectorAll('.intro-mode-btn')]
   const mode3d = modeBtns.find((b) => b.dataset.mode === '3d')

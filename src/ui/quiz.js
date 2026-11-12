@@ -96,8 +96,8 @@ export function createQuiz({ stepEl, qEl, optsEl, whyEl, scoreEl, nextEl }) {
     answered[current] = i
     renderOptions()
     renderWhy()
-    const b = optsEl.querySelector(`[data-index="${i}"]`)
-    if (b) b.focus()
+    // 选项答完会 disabled，焦点不能落回去，交给「下一题」
+    if (!nextEl.hidden) nextEl.focus({ preventScroll: true })
   }
 
   function advance() {

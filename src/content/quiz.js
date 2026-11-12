@@ -66,7 +66,7 @@ export const questions = [
     },
     options: [
       { zh: 'sunmao（直接音译）', en: 'sunmao (transliteration)' },
-      { zh: 'mortise and tenon joint', en: 'mortise and tenon joint' },
+      { zh: 'mortise-and-tenon joint', en: 'mortise-and-tenon joint' },
       { zh: 'wood lock', en: 'wood lock' },
     ],
     answer: 1,
