@@ -1,5 +1,7 @@
 import { beats, ui } from '../content/beats.js'
 import { termWall, termById, nodeTerms } from '../content/glossary.js'
+import { createQuiz } from './quiz.js'
+import { sealChars } from '../content/seal.js'
 
 // 文案渲染、进度条、语言切换、beat 指示、名称浮层。文案全部来自 content/，这里不做硬编码。
 
@@ -61,8 +63,25 @@ export function createOverlay({ reducedMotion, fallbackMode, handlers, initialLa
     bar: $('progressbar'),
     langToggle: $('lang-toggle'),
     partLabel: $('part-label'),
+    seal: $('seal'),
+    quizStep: $('quiz-step'),
+    quizQ: $('quiz-q'),
+    quizOpts: $('quiz-opts'),
+    quizWhy: $('quiz-why'),
+    quizScore: $('quiz-score'),
+    quizNext: $('quiz-next'),
   }
   const floodBtns = [...document.querySelectorAll('.flood-btn')]
+
+  const quiz = createQuiz({
+    stepEl: el.quizStep,
+    qEl: el.quizQ,
+    optsEl: el.quizOpts,
+    whyEl: el.quizWhy,
+    scoreEl: el.quizScore,
+    nextEl: el.quizNext,
+  })
+
 
   // 漏水状态读屏区：index.html 不在本次改动范围，运行时补一个 role=status 元素。
   const floodStatus = document.createElement('p')
@@ -82,6 +101,7 @@ export function createOverlay({ reducedMotion, fallbackMode, handlers, initialLa
 
   let lang = initialLang === 'en' ? 'en' : 'zh'
   let beatIndex = -1
+let lastInteractionBeat = -1
   let swapToken = 0
   let fMode = fallbackMode
 
@@ -227,6 +247,16 @@ export function createOverlay({ reducedMotion, fallbackMode, handlers, initialLa
 
     if (beat.interaction === 'terms') renderTerms()
 
+    if (el.seal) {
+      el.seal.replaceChildren()
+      if (sealChars[i]) {
+        sealChars[i].zh.forEach((ch) => {
+          const span = document.createElement('span')
+          span.textContent = ch
+          el.seal.appendChild(span)
+        })
+      }
+    }
     el.canvas.setAttribute('aria-label', t(beat.stageLabel))
     el.indicator.textContent = `${i + 1} / ${beats.length}`
   }
@@ -245,6 +275,9 @@ export function createOverlay({ reducedMotion, fallbackMode, handlers, initialLa
       renderCaulkUI()
     }
     if (beat.interaction === 'flood') setFloodActive('with-bulkheads')
+    // 只在真正换到这一屏时重置，b6/b7 边界抖动不打断答题
+    if (beat.interaction === 'replay' && lastInteractionBeat !== i) quiz.reset()
+    lastInteractionBeat = i
   }
 
   function applyBeatContent(i) {
@@ -307,6 +340,7 @@ export function createOverlay({ reducedMotion, fallbackMode, handlers, initialLa
       // 只换文案：交互状态从已记录状态恢复，不重置（不重新走 applyBeatInteraction）。
       renderCaulkUI()
       setFloodActive(floodActiveName)
+      quiz.setLang(lang)
     },
     get lang() {
       return lang

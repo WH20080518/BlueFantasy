@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="t5 d5">
+  <title id="t5">漏水实验：有隔舱与无隔舱对比</title>
+  <desc id="d5">左：水密隔舱把进水限制在一个舱内，船体略倾，仍然浮着。右：抽掉隔舱板，同一个破口的水漫过全船，吃水加深。</desc>
+  <defs>
+    <linearGradient id="w5" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#A9C0BA"/>
+      <stop offset="1" stop-color="#5F7A78"/>
+    </linearGradient>
+    <linearGradient id="h5" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8A6244"/>
+      <stop offset="1" stop-color="#63452C"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="675" fill="#E8E4DC"/>
+
+  <!-- 分栏细线 -->
+  <line x1="600" y1="120" x2="600" y2="460" stroke="#3A2A20" stroke-opacity="0.18" stroke-width="1"/>
+
+  <!-- 左：有水密隔舱 -->
+  <g transform="rotate(-2 330 300)">
+    <path d="M120 220 L120 336 Q120 372 158 372 L502 372 Q540 372 540 336 L540 220"
+          fill="url(#h5)" fill-opacity="0.42" stroke="#3A2A20" stroke-opacity="0.75" stroke-width="3"/>
+    <!-- 三道隔舱板 -->
+    <g stroke="#3A2A20" stroke-opacity="0.8" stroke-width="7">
+      <line x1="208" y1="216" x2="208" y2="370"/>
+      <line x1="330" y1="216" x2="330" y2="370"/>
+      <line x1="452" y1="216" x2="452" y2="370"/>
+    </g>
+    <!-- 单舱进水 -->
+    <rect x="212" y="284" width="114" height="86" fill="url(#w5)" fill-opacity="0.88"/>
+    <line x1="212" y1="284" x2="326" y2="284" stroke="#F4F8F5" stroke-width="2.5"/>
+    <text x="330" y="166" text-anchor="middle" font-family="'Noto Serif SC',serif" font-size="17" fill="#3A2A20">有水密隔舱</text>
+    <text x="330" y="192" text-anchor="middle" font-family="'Noto Serif SC',serif" font-size="12" fill="#3A2A20" opacity="0.72">一个舱进水，船略倾，仍然浮着</text>
+  </g>
+
+  <!-- 右：无隔舱 -->
+  <g transform="translate(600 14)">
+    <path d="M120 220 L120 336 Q120 372 158 372 L502 372 Q540 372 540 336 L540 220"
+          fill="url(#h5)" fill-opacity="0.30" stroke="#3A2A20" stroke-opacity="0.55" stroke-width="3"/>
+    <!-- 抽掉的隔舱板：虚线残迹 -->
+    <g stroke="#3A2A20" stroke-opacity="0.28" stroke-width="4" stroke-dasharray="10 12">
+      <line x1="208" y1="216" x2="208" y2="370"/>
+      <line x1="330" y1="216" x2="330" y2="370"/>
+      <line x1="452" y1="216" x2="452" y2="370"/>
+    </g>
+    <!-- 水漫全船 -->
+    <rect x="124" y="238" width="412" height="132" fill="url(#w5)" fill-opacity="0.9"/>
+    <line x1="124" y1="238" x2="536" y2="238" stroke="#F4F8F5" stroke-width="2.5"/>
+    <text x="330" y="166" text-anchor="middle" font-family="'Noto Serif SC',serif" font-size="17" fill="#3A2A20">无隔舱</text>
+    <text x="330" y="192" text-anchor="middle" font-family="'Noto Serif SC',serif" font-size="12" fill="#3A2A20" opacity="0.72">同一个破口，水漫全船，吃水加深</text>
+    <text x="330" y="300" text-anchor="middle" font-family="'Noto Serif SC',serif" font-size="12" fill="#F4F8F5" opacity="0.95">水一路漫过去</text>
+  </g>
+
+  <!-- 底部对比标记 -->
+  <g font-family="'Noto Serif SC',serif" font-size="12" fill="#3A2A20" opacity="0.5">
+    <text x="120" y="452">同一处破口，两种结构</text>
+    <text x="720" y="452">抽掉隔舱板后，浮力逐舱丧失</text>
+  </g>
+</svg>

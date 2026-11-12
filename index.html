@@ -14,6 +14,20 @@
     />
   </head>
   <body>
+    <div class="intro" id="intro" hidden>
+      <div class="intro-inner">
+        <p class="intro-eyebrow" id="intro-eyebrow"></p>
+        <h1 class="intro-title" id="intro-title"></h1>
+        <p class="intro-sub" id="intro-sub"></p>
+        <p class="intro-note" id="intro-note"></p>
+        <button class="intro-start" id="intro-start" type="button"></button>
+        <div class="intro-mode" id="intro-mode" role="group" aria-label="显示方式">
+          <button class="intro-mode-btn is-active" type="button" data-mode="3d">3D</button>
+          <button class="intro-mode-btn" type="button" data-mode="2d">2D</button>
+        </div>
+      </div>
+    </div>
+
     <header class="topbar">
       <span class="topbar-mark" aria-hidden="true">榫合 · Joinery</span>
       <span class="topbar-beat" id="beat-indicator" aria-hidden="true"></span>
@@ -29,6 +43,7 @@
         <img class="stage-fallback" id="stage-fallback" alt="" loading="lazy" hidden />
 
         <div class="part-label" id="part-label" hidden></div>
+        <div class="seal" id="seal" aria-hidden="true"></div>
 
         <section class="copy" id="copy" aria-live="polite">
           <p class="copy-eyebrow" id="copy-eyebrow"></p>
@@ -54,6 +69,14 @@
           </div>
 
           <div class="coda" id="coda-ui" hidden>
+            <div class="quiz" id="quiz">
+              <p class="quiz-step" id="quiz-step"></p>
+              <p class="quiz-q" id="quiz-q"></p>
+              <div class="quiz-opts" id="quiz-opts" role="group"></div>
+              <p class="quiz-why" id="quiz-why" role="status" aria-live="polite" hidden></p>
+              <button type="button" class="quiz-next" id="quiz-next" hidden></button>
+              <p class="quiz-score" id="quiz-score" hidden></p>
+            </div>
             <p class="credits" id="credits"></p>
             <button type="button" class="replay" id="replay"></button>
           </div>

@@ -2,6 +2,7 @@ import './styles.css'
 import { beats } from './content/beats.js'
 import { createOverlay } from './ui/overlay.js'
 import { initFallback } from './ui/fallback.js'
+import { introCopy } from './content/intro.js'
 
 // 入口：滚动引擎、语言状态、3D / 降级路由。
 // 滚动只在 requestAnimationFrame 里读一次 scrollY，不在 scroll 回调里遍历 DOM。
@@ -41,6 +42,8 @@ document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en'
 const story = document.getElementById('story')
 const stageEl = document.getElementById('stage')
 const canvas = document.getElementById('stage-canvas')
+const introEl = document.getElementById('intro')
+const introBtn = document.getElementById('intro-start')
 const fallbackImg = document.getElementById('stage-fallback')
 
 // 稳定 svh 基准：100svh 不随移动端地址栏收缩变化，用它做高度与进度基准，避免地址栏收起时重算进度跳动。
@@ -57,6 +60,7 @@ function measureVH() {
 
 let currentBeat = -1
 let stage3d = null
+let threeFailed = false
 let fallback = null
 let labelPart = null
 let labelPinned = false
@@ -243,6 +247,84 @@ function useFallback() {
   if (currentBeat >= 0) fallback.setBeat(beats[currentBeat], lang)
 }
 
+/* ---------- 开场 ---------- */
+
+let viewMode = !no3d && webglAvailable() ? '3d' : '2d'
+
+function applyViewMode() {
+  // three 加载失败过，3D 就回不去了，直接锁在 2D
+  if (viewMode === '3d' && threeFailed) viewMode = '2d'
+  document.querySelectorAll('.intro-mode-btn').forEach((b) => {
+    b.classList.toggle('is-active', b.dataset.mode === viewMode)
+    if (b.dataset.mode === '3d' && threeFailed) {
+      b.disabled = true
+      b.setAttribute('aria-disabled', 'true')
+    }
+  })
+  if (viewMode === '2d') {
+    useFallback()
+  } else if (fallback) {
+    fallback = null
+    stageEl.classList.remove('is-fallback')
+    document.body.classList.remove('is-fallback')
+    fallbackImg.hidden = true
+    overlay.setFallbackMode(false)
+  }
+}
+
+// 开场页在进站前，站内语言还没确定，先按浏览器语言选一版
+const introLang = (navigator.language || 'zh').toLowerCase().startsWith('zh') ? 'zh' : 'en'
+
+function presentIntro() {
+  if (!introEl || !introBtn) return
+  document.getElementById('intro-eyebrow').textContent = introCopy.eyebrow[introLang]
+  document.getElementById('intro-title').textContent = introCopy.title[introLang]
+  document.getElementById('intro-sub').textContent = introCopy.sub[introLang]
+  document.getElementById('intro-note').textContent = introCopy.note[introLang]
+  introBtn.textContent = introCopy.start[introLang]
+  introBtn.setAttribute('aria-label', introCopy.startAria[introLang])
+
+  const modeBtns = [...document.querySelectorAll('.intro-mode-btn')]
+  const mode3d = modeBtns.find((b) => b.dataset.mode === '3d')
+  if (mode3d && viewMode === '2d') {
+    mode3d.disabled = true
+    mode3d.setAttribute('aria-disabled', 'true')
+  }
+  modeBtns.forEach((b) => {
+    b.addEventListener('click', () => {
+      if (b.disabled) return
+      viewMode = b.dataset.mode
+      applyViewMode()
+    })
+  })
+
+  introEl.hidden = false
+  document.documentElement.classList.add('intro-locked')
+  window.scrollTo(0, 0)
+  applyViewMode()
+  introBtn.focus({ preventScroll: true })
+}
+
+function enterSite() {
+  if (!introEl || introEl.hidden || introEl.classList.contains('is-leaving')) return
+  window.scrollTo(0, 0)
+  document.documentElement.classList.remove('intro-locked')
+  if (reducedMotion()) {
+    introEl.remove()
+    stageEl.focus({ preventScroll: true })
+    return
+  }
+  introEl.classList.add('is-leaving')
+  window.setTimeout(() => {
+    introEl.remove()
+    stageEl.focus({ preventScroll: true })
+  }, 560)
+}
+
+introBtn?.addEventListener('click', enterSite)
+presentIntro()
+
+
 /* ---------- 深链 ---------- */
 
 // ?beat=N（1 起）：定位到该 beat 的中点。要等布局结算，浏览器还可能把滚动还原成 0。
@@ -259,7 +341,6 @@ function applyInitialLocation() {
   if (window.__dlLog !== false) console.info("[deep] max=" + max)
   if (max > 0) window.scrollTo({ top: Math.round(max * mid), behavior: 'auto' })
 }
-
 /* ---------- 启动 ---------- */
 
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual'
@@ -306,9 +387,11 @@ if (!no3d && webglAvailable()) {
       if (currentBeat >= 0) stage3d.enterBeat(currentBeat)
     })
     .catch((err) => {
-      // 3D 加载失败：保留文案与 SVG，不白屏
+      // 3D 加载失败：保留文案与 SVG，不白屏；并锁死 3D 选项
+      threeFailed = true
       console.error('3D stage failed, falling back to SVG:', err)
       useFallback()
+      applyViewMode()
     })
 } else {
   useFallback()

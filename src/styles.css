@@ -122,7 +122,12 @@ body {
   height: 100vh;
   height: 100svh;
   overflow: hidden;
-  background: linear-gradient(180deg, #0f1c20 0%, #17282e 55%, #0a1215 100%);
+  background:
+    /* 压暗下半部，让文案面板和水线有层次 */
+    linear-gradient(180deg, rgba(10, 18, 21, 0) 42%, rgba(10, 18, 21, 0.55) 100%),
+    /* 海水纹（立水）：多层波浪，贴底铺满 */
+    url("./assets/bg/sea-lines.svg") center bottom / cover no-repeat,
+    linear-gradient(180deg, #0f1c20 0%, #17282e 55%, #0a1215 100%);
 }
 
 .stage-canvas {
@@ -206,13 +211,15 @@ body {
   font-size: clamp(1.45rem, 3vw, 2.05rem);
   font-weight: 600;
   line-height: 1.25;
+  hyphens: none;
+  text-wrap: balance;
   letter-spacing: 0.01em;
 }
 
 .copy-body p {
   margin: 0 0 0.6rem;
   max-width: 46ch;
-  font-size: clamp(0.92rem, 1.3vw, 1rem);
+  font-size: 1rem;
   line-height: 1.72;
   color: rgba(233, 227, 214, 0.92);
 }
@@ -395,6 +402,134 @@ body {
   margin-top: 1.1rem;
 }
 
+/* 三问：一次一题，答完给解释 */
+.quiz {
+  margin: 0 0 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
+.quiz-step {
+  margin: 0 0 0.35rem;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--tung);
+}
+
+.quiz-q {
+  margin: 0 0 0.55rem;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.quiz-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.quiz-opt {
+  appearance: none;
+  flex: 1 1 100%;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--paper);
+  font-family: var(--serif);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  text-align: left;
+  padding: 0.42rem 0.7rem;
+  cursor: pointer;
+  transition: transform 140ms ease-out, border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.quiz-opt:hover:not(:disabled) {
+  border-color: var(--tung);
+  color: var(--tung);
+}
+
+.quiz-opt:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.quiz-opt.is-right {
+  border-color: var(--tung);
+  background: rgba(192, 138, 74, 0.16);
+  color: var(--tung);
+}
+
+.quiz-opt.is-wrong {
+  border-color: var(--cinnabar);
+  color: #d9705b;
+}
+
+.quiz-opt:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.quiz-why {
+  margin: 0.55rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.65;
+  color: var(--mist);
+}
+
+.quiz-why.is-right {
+  color: var(--tung);
+}
+
+.quiz-why.is-wrong {
+  color: #d9705b;
+}
+
+.quiz-next {
+  appearance: none;
+  margin-top: 0.6rem;
+  border: 1px solid var(--tung);
+  background: transparent;
+  color: var(--tung);
+  font-family: var(--serif);
+  font-size: 0.84rem;
+  letter-spacing: 0.06em;
+  padding: 0.35rem 1rem;
+  cursor: pointer;
+  transition: transform 140ms ease-out, background-color 160ms ease, color 160ms ease;
+}
+
+.quiz-next:hover {
+  background: var(--tung);
+  color: var(--wood-deep);
+}
+
+.quiz-next:active {
+  transform: scale(0.98);
+}
+
+.quiz-score {
+  margin: 0.7rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  color: var(--mist);
+}
+
+.quiz-score.is-done {
+  color: var(--tung);
+}
+
+@media (max-width: 640px) {
+  .quiz-opt {
+    font-size: 0.8rem;
+    padding: 0.42rem 0.6rem;
+  }
+
+  .quiz-q {
+    font-size: 0.88rem;
+  }
+}
+
 .credits {
   margin: 0 0 0.9rem;
   font-size: 0.78rem;
@@ -458,9 +593,7 @@ body {
   }
 
   .copy-title {
-    font-size: 1.18rem;
-    margin-bottom: 0.45rem;
-    line-height: 1.3;
+    margin-bottom: 0.5rem;
   }
 
   .copy-eyebrow {
@@ -469,8 +602,8 @@ body {
   }
 
   .copy-body p {
-    font-size: 0.86rem;
-    line-height: 1.62;
+    font-size: 1rem;
+    line-height: 1.72;
     margin-bottom: 0.4rem;
   }
 
@@ -486,8 +619,8 @@ body {
   }
 
   .terms-list {
-    grid-template-columns: 1fr 1fr;
-    gap: 0.35rem 0.9rem;
+    grid-template-columns: 1fr;
+    gap: 0.3rem 0;
   }
 }
 
@@ -503,5 +636,304 @@ body {
   .flood-btn,
   .replay {
     transition: none;
+  }
+}
+
+/* 第 7 屏加了「三问」后内容变高：窄屏收紧间距，面板内部滚动兜底 */
+@media (max-width: 640px) {
+  .copy {
+    max-height: calc(100svh - 1.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .copy-body p {
+    line-height: 1.72;
+  }
+
+  .coda {
+    margin-top: 0.8rem;
+  }
+
+  .quiz {
+    margin-bottom: 0.7rem;
+    padding-top: 0.7rem;
+  }
+
+  .quiz-q {
+    margin-bottom: 0.4rem;
+  }
+
+  .quiz-opt {
+    font-size: 0.78rem;
+    padding: 0.34rem 0.6rem;
+  }
+
+  .credits {
+    font-size: 0.72rem;
+    margin-bottom: 0.7rem;
+  }
+}
+
+/* ---------- 开场 ---------- */
+html.intro-locked,
+html.intro-locked body {
+  overflow: hidden;
+}
+
+.intro[hidden] {
+  display: none;
+}
+
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: radial-gradient(ellipse 72% 62% at 50% 42%, rgba(11, 20, 23, 0.55), rgba(11, 20, 23, 0.95) 72%);
+  transition: opacity 520ms cubic-bezier(0.22, 1, 0.36, 1), transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 开场时把正文面板和顶栏藏起来，避免半透明遮罩下透出「重影」 */
+html.intro-locked .copy,
+html.intro-locked .topbar,
+html.intro-locked .seal {
+  opacity: 0;
+}
+
+.intro.is-leaving {
+  opacity: 0;
+  transform: scale(1.015);
+  pointer-events: none;
+}
+
+.intro-inner {
+  max-width: 34rem;
+  text-align: center;
+}
+
+.intro-eyebrow {
+  margin: 0 0 1.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  color: var(--mist);
+}
+
+.intro-title {
+  margin: 0;
+  font-size: clamp(3rem, 8.5vw, 6.5rem);
+  font-weight: 600;
+  line-height: 1.06;
+  letter-spacing: 0.16em;
+  text-indent: 0.16em;
+}
+
+.intro-sub {
+  margin: 1.5rem auto 0;
+  max-width: 26em;
+  font-size: clamp(0.92rem, 1.5vw, 1.02rem);
+  line-height: 1.85;
+  color: rgba(233, 227, 214, 0.82);
+}
+
+.intro-note {
+  margin: 1.1rem 0 0;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  color: var(--mist);
+  opacity: 0.8;
+}
+
+.intro-start {
+  appearance: none;
+  margin-top: 2.4rem;
+  border: 1px solid var(--tung);
+  background: transparent;
+  color: var(--tung);
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  letter-spacing: 0.22em;
+  padding: 0.75rem 2.2rem;
+  cursor: pointer;
+  transition: transform 160ms ease-out, background-color 220ms ease, color 220ms ease;
+}
+
+.intro-start:hover {
+  background: var(--tung);
+  color: var(--wood-deep);
+}
+
+.intro-start:active {
+  transform: scale(0.98);
+}
+
+@media (max-width: 640px) {
+  .intro-sub {
+    font-size: 0.9rem;
+    line-height: 1.75;
+  }
+
+  .intro-start {
+    padding: 0.7rem 1.7rem;
+    letter-spacing: 0.16em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro {
+    transition: none;
+  }
+
+  /* 开场时把正文面板和顶栏藏起来，避免半透明遮罩下透出「重影」 */
+
+
+.intro.is-leaving {
+    transform: none;
+  }
+}
+/* ---------- 降级：纸面主题 ---------- */
+/* 没有 3D 时整页切成浅色，和 SVG 自带的纸底同色；深色面板不再压在图上。 */
+body.is-fallback {
+  --paper: #22302f;
+  --wood: #e8e4dc;
+  --wood-deep: #d9d3c5;
+  --panel: rgba(250, 247, 239, 0.94);
+  --line: rgba(34, 48, 47, 0.22);
+  --mist: #4d5f5d;
+  --tung: #8a5a24;
+  --cinnabar: #9c3327;
+}
+
+body.is-fallback .topbar {
+  background: linear-gradient(180deg, rgba(232, 228, 220, 0.96), rgba(232, 228, 220, 0));
+}
+
+body.is-fallback .progress {
+  background: rgba(34, 48, 47, 0.12);
+}
+
+body.is-fallback .stage {
+  background: #e8e4dc;
+}
+
+body.is-fallback .stage-fallback {
+  padding: 0;
+  background: #e8e4dc;
+}
+
+body.is-fallback .copy-body p {
+  color: rgba(34, 48, 47, 0.9);
+}
+
+body.is-fallback .caulk-step:disabled,
+body.is-fallback .flood-btn:disabled {
+  opacity: 1;
+  color: rgba(34, 48, 47, 0.45);
+  border-color: rgba(34, 48, 47, 0.28);
+  background: rgba(34, 48, 47, 0.05);
+}
+
+body.is-fallback .quiz-opt.is-right {
+  background: rgba(138, 90, 36, 0.14);
+}
+/* 开场页的 3D / 2D 切换 */
+.intro-mode {
+  display: flex;
+  width: fit-content;
+  margin: 1.6rem auto 0;
+  border: 1px solid var(--line);
+}
+
+.intro-mode-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--mist);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  padding: 0.32rem 0.95rem;
+  cursor: pointer;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.intro-mode-btn + .intro-mode-btn {
+  border-left: 1px solid var(--line);
+}
+
+.intro-mode-btn.is-active {
+  background: var(--tung);
+  color: var(--wood-deep);
+}
+
+.intro-mode-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+/* 平板竖屏：面板放宽一档，避免两边留白过多 */
+@media (min-width: 700px) and (max-width: 900px) {
+  .copy {
+    max-width: 32rem;
+  }
+}
+@font-face {
+  font-family: "Seal Script";
+  src: url("./assets/fonts/seal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+/* ---------- 印章 ---------- */
+/* 每屏角落一枚钤印，朱文方印，随分镜换印文 */
+.seal {
+  position: absolute;
+  right: clamp(1.2rem, 3.2vw, 2.8rem);
+  bottom: clamp(1.2rem, 4vh, 2.4rem);
+  z-index: 4;
+  width: 74px;
+  height: 74px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 4px;
+  color: #c8493a;
+  border: 2.5px solid currentColor;
+  font-family: "Seal Script", var(--serif);
+  font-size: 2.15rem;
+  font-weight: 400;
+  line-height: 0.92;
+  letter-spacing: 0;
+  opacity: 0.84;
+  transform: rotate(-3.5deg);
+  pointer-events: none;
+  text-align: center;
+  box-shadow: inset 0 0 0 1px rgba(200, 73, 58, 0.55), 0 0 12px rgba(200, 73, 58, 0.22);
+  transition: opacity 260ms ease-out;
+}
+
+.seal:empty {
+  opacity: 0;
+}
+
+body.is-fallback .seal {
+  color: #9c3327;
+  box-shadow: inset 0 0 0 1px rgba(156, 51, 39, 0.25), 0 0 7px rgba(156, 51, 39, 0.12);
+}
+
+@media (max-width: 640px) {
+  .seal {
+    top: 3.4rem;
+    bottom: auto;
+    right: 0.9rem;
+    width: 42px;
+    height: 42px;
+    font-size: 0.95rem;
+    border-width: 2px;
+    opacity: 0.62;
   }
 }

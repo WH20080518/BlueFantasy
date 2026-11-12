@@ -77,7 +77,7 @@ export const beats = [
       ],
     },
     stage: {
-      nodes: ['hull_shell', 'keel', 'stem', 'sternpost', 'bulkhead_01', 'bulkhead_02', 'bulkhead_03', 'bulkhead_04', 'bulkhead_05', 'bulkhead_06', 'bulkhead_07', 'bulkhead_08', 'bulkhead_09', 'bulkhead_10', 'bulkhead_11', 'bulkhead_12'],
+      nodes: ['hull_shell', 'bulkhead_01', 'bulkhead_02', 'bulkhead_03', 'bulkhead_04', 'bulkhead_05', 'bulkhead_06', 'bulkhead_07', 'bulkhead_08', 'bulkhead_09', 'bulkhead_10', 'bulkhead_11', 'bulkhead_12'],
       camera: 'cutaway',
       motion: 'none',
     },
@@ -101,12 +101,12 @@ export const beats = [
       ],
     },
     stage: {
-      nodes: ['hull_shell', 'keel', 'stem', 'sternpost', 'bulkhead_01', 'bulkhead_02', 'bulkhead_03', 'bulkhead_04', 'bulkhead_05', 'bulkhead_06', 'bulkhead_07', 'bulkhead_08', 'bulkhead_09', 'bulkhead_10', 'bulkhead_11', 'bulkhead_12'],
+      nodes: ['hull_shell', 'bulkhead_01', 'bulkhead_02', 'bulkhead_03', 'bulkhead_04', 'bulkhead_05', 'bulkhead_06', 'bulkhead_07', 'bulkhead_08', 'bulkhead_09', 'bulkhead_10', 'bulkhead_11', 'bulkhead_12'],
       camera: 'flood',
       motion: 'none',
     },
     interaction: 'flood',
-    fallback: 'svg/e4-bulkhead-plan.svg',
+    fallback: 'svg/e5-flood.svg',
     stageLabel: { zh: '舞台：船体侧视，一个舱正在进水', en: 'Stage: side view of the hull, one compartment flooding' },
   },
   {
@@ -125,7 +125,7 @@ export const beats = [
       ],
     },
     stage: {
-      nodes: ['hull_shell', 'keel', 'stem', 'sternpost', 'bulkhead_01', 'bulkhead_02', 'bulkhead_03', 'bulkhead_04', 'bulkhead_05', 'bulkhead_06', 'bulkhead_07', 'bulkhead_08', 'bulkhead_09', 'bulkhead_10', 'bulkhead_11', 'bulkhead_12'],
+      nodes: ['hull_shell', 'bulkhead_01', 'bulkhead_02', 'bulkhead_03', 'bulkhead_04', 'bulkhead_05', 'bulkhead_06', 'bulkhead_07', 'bulkhead_08', 'bulkhead_09', 'bulkhead_10', 'bulkhead_11', 'bulkhead_12'],
       camera: 'terms',
       motion: 'none',
     },
@@ -148,7 +148,7 @@ export const beats = [
       ],
     },
     stage: {
-      nodes: ['hull_shell', 'keel', 'stem', 'sternpost', 'bulkhead_01', 'bulkhead_02', 'bulkhead_03', 'bulkhead_04', 'bulkhead_05', 'bulkhead_06', 'bulkhead_07', 'bulkhead_08', 'bulkhead_09', 'bulkhead_10', 'bulkhead_11', 'bulkhead_12'],
+      nodes: ['hull_shell', 'ship_deck', 'bulkhead_01', 'bulkhead_02', 'bulkhead_03', 'bulkhead_04', 'bulkhead_05', 'bulkhead_06', 'bulkhead_07', 'bulkhead_08', 'bulkhead_09', 'bulkhead_10', 'bulkhead_11', 'bulkhead_12'],
       camera: 'away',
       motion: 'none',
     },
