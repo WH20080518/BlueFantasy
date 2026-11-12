@@ -34,6 +34,7 @@ function measureVH() {
 let lang = 'zh'
 let currentBeat = -1
 let stage3d = null
+let threeFailed = false
 let fallback = null
 let labelPart = null
 let labelPinned = false
@@ -193,8 +194,14 @@ function useFallback() {
 let viewMode = !no3d && webglAvailable() ? '3d' : '2d'
 
 function applyViewMode() {
+  // three 加载失败过，3D 就回不去了，直接锁在 2D
+  if (viewMode === '3d' && threeFailed) viewMode = '2d'
   document.querySelectorAll('.intro-mode-btn').forEach((b) => {
     b.classList.toggle('is-active', b.dataset.mode === viewMode)
+    if (b.dataset.mode === '3d' && threeFailed) {
+      b.disabled = true
+      b.setAttribute('aria-disabled', 'true')
+    }
   })
   if (viewMode === '2d') {
     useFallback()
@@ -279,9 +286,11 @@ if (!no3d && webglAvailable()) {
       if (currentBeat >= 0) stage3d.enterBeat(currentBeat)
     })
     .catch((err) => {
-      // 3D 加载失败：保留文案与 SVG，不白屏
+      // 3D 加载失败：保留文案与 SVG，不白屏；并锁死 3D 选项
+      threeFailed = true
       console.error('3D stage failed, falling back to SVG:', err)
       useFallback()
+      applyViewMode()
     })
 } else {
   useFallback()

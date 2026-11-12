@@ -70,6 +70,7 @@ export function createOverlay({ reducedMotion, fallbackMode, handlers }) {
 
   let lang = 'zh'
   let beatIndex = -1
+let lastInteractionBeat = -1
   let swapToken = 0
   let fMode = fallbackMode
 
@@ -209,7 +210,9 @@ export function createOverlay({ reducedMotion, fallbackMode, handlers }) {
       renderCaulkUI()
     }
     if (beat.interaction === 'flood') setFloodActive('with-bulkheads')
-    if (beat.interaction === 'replay') quiz.reset()
+    // 只在真正换到这一屏时重置，b6/b7 边界抖动不打断答题
+    if (beat.interaction === 'replay' && lastInteractionBeat !== i) quiz.reset()
+    lastInteractionBeat = i
   }
 
   function applyBeatContent(i) {
