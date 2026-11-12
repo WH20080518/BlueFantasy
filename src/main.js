@@ -185,10 +185,53 @@ function useFallback() {
   if (currentBeat >= 0) fallback.setBeat(beats[currentBeat], lang)
 }
 
+/* ---------- 深链 ---------- */
+
+// ?beat=N（1 起）：定位到该 beat 的中点。要等布局结算，浏览器还可能把滚动还原成 0。
+function applyInitialLocation() {
+  window.__dl = (window.__dl || 0) + 1
+  const raw = new URLSearchParams(window.location.search).get('beat')
+  if (raw === null) return
+  const n = Number.parseInt(raw, 10)
+  if (!Number.isFinite(n) || n < 1) return
+  const i = Math.min(beats.length, n) - 1
+  const beat = beats[i]
+  const mid = (beat.progress[0] + beat.progress[1]) / 2
+  const max = document.documentElement.scrollHeight - vhBaseline
+  if (window.__dlLog !== false) console.info("[deep] max=" + max)
+  if (max > 0) window.scrollTo({ top: Math.round(max * mid), behavior: 'auto' })
+}
+
 /* ---------- 启动 ---------- */
+
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual'
+
+// 深链需要在文档高度结算后再滚；这里等真实可滚高度出现再定位一次
+function scheduleDeepLink() {
+  let tries = 0
+  const tick = () => {
+    const max = document.documentElement.scrollHeight - vhBaseline
+    if (max > 100) {
+      applyInitialLocation()
+      return
+    }
+    if (tries++ < 90) requestAnimationFrame(tick)
+  }
+  requestAnimationFrame(tick)
+}
 
 measureVH()
 layout()
+scheduleDeepLink()
+
+// load 之后再定位一次：首帧时文档高度可能还没结算
+window.addEventListener('load', () => {
+  requestAnimationFrame(applyInitialLocation)
+  // 浏览器的滚动还原/布局结算可能晚于 load，再补两次
+  setTimeout(applyInitialLocation, 120)
+  setTimeout(applyInitialLocation, 400)
+})
+
 window.addEventListener('resize', () => {
   measureVH()
   layout()

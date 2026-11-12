@@ -67,6 +67,12 @@ function sharedMaterial(color) {
 // - 子物体自身位移归零，单位按包围盒判断（>100 视为毫米，整树 0.001）
 // 返回成功接上的零件数。
 function bindRealMeshes(gltf, nodes, { unit } = {}) {
+  // 这些零件被交互模块持有网格引用（caulk 的上下板、flood 的隔舱材质、joint 的爆炸件）。
+  // 直接替换会让 refs 指向已移除的网格，表现为「点了没反应」。P2 阶段先保留占位。
+  const KEEP_PLACEHOLDER = new Set([
+    'plank_seam', 'nail_set', 'caulk_layer',
+    'joint_tenon', 'joint_mortise',
+  ])
   const root = gltf?.scene ?? gltf?.scenes?.[0]
   if (!root) return 0
 
@@ -99,6 +105,7 @@ function bindRealMeshes(gltf, nodes, { unit } = {}) {
 
   let bound = 0
   nodes.forEach((group, name) => {
+    if (KEEP_PLACEHOLDER.has(name)) return
     const source = root.getObjectByName(name)
     if (!source) return
 
@@ -113,9 +120,13 @@ function bindRealMeshes(gltf, nodes, { unit } = {}) {
     clone.scale.set(1, 1, 1)
 
     const material = sharedMaterial(paletteFor(name))
+    // 船体是开口放样：单面渲染会只剩朝向相机的一半。外壳与甲板强制双面。
+    const twoSided = name === 'hull_shell' || name === 'ship_deck'
+    const mat = twoSided ? material.clone() : material
+    if (twoSided) mat.side = THREE.DoubleSide
     clone.traverse((obj) => {
       if (!obj.isMesh) return
-      obj.material = material
+      obj.material = mat
       obj.castShadow = false
       obj.receiveShadow = false
     })
@@ -200,9 +211,23 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       if (!gltf || realModel) return
       realModel = gltf
       const bound = bindRealMeshes(gltf, nodes, { unit: spec?.unit })
-      if (bound > 0) console.info(`[stage] GLB 已接入 ${bound} 个零件`)
+      if (bound > 0) {
+        // 隔舱被替换后，flood 里的旧材质引用失效；把 12 道重新登记给它
+        const list = []
+        for (let i = 1; i <= 12; i += 1) {
+          const g = nodes.get(`bulkhead_${String(i).padStart(2, '0')}`)
+          if (g) list.push(g)
+        }
+        flood.rebindBulkheads(list)
+        console.info(`[stage] GLB 已接入 ${bound} 个零件，隔舱 ${list.length} 道`)
+      }
     })
     .catch((err) => console.warn('[stage] 接入 GLB 失败：', err))
+
+  // DEV 调试钩子：浏览器里可直接读场景状态
+  if (import.meta.env.DEV) {
+    window.__bf = { scene, camera, renderer }
+  }
 
   const parts = new Parts(nodes)
   const flood = createFlood({ ship: shipGroup, compWater: water.comp, fullWater: water.full, bulkheads, water }, reducedMotion)
@@ -265,6 +290,19 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       nodeSetFor(i).forEach((n) => visibleSet.add(n))
       if (blend > 0 && next) next.stage.nodes.forEach((n) => visibleSet.add(n))
       parts.setVisible(visibleSet)
+
+      // 剖舱与漏水两屏需要看进船体：有真模型时把外壳调透明，其余屏恢复不透明
+      const seeThrough = beat.id === 'b4' || beat.id === 'b5'
+      for (const nm of ['hull_shell', 'ship_deck']) {
+        const node = nodes.get(nm)
+        if (!node) continue
+        node.traverse((obj) => {
+          if (!obj.isMesh || !obj.material) return
+          obj.material.transparent = seeThrough
+          obj.material.opacity = seeThrough ? 0.55 : 1
+          obj.material.depthWrite = !seeThrough
+        })
+      }
 
       // 相机
       rig.update(beat.stage.camera, next ? next.stage.camera : null, blend, lt, dt)
