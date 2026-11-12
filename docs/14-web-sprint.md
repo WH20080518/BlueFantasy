@@ -2,6 +2,10 @@
 
 > 目标：在 3D 模型到位前，把「不依赖 GLB 的事」全部做完。模型一到，只换资产，不改结构。
 > 现状：7 个 beat 的滚动叙事、占位几何、补缝/漏水、中英切换、SVG 降级都已跑通并上线（`1be7b6d`）。
+>
+> **怎么用这份文档**：找到自己那一段，从上往下勾。每天 21:00 同步只回答三个问题——做完什么、卡在哪、明天要谁配合。文档里凡是带 `- [ ]` 的条目，做完就打勾，别在群里口头汇报代替。
+>
+> **谁改哪里**：`src/content/` 只有 D 能动；`src/stage/` 只有 A 能动；`src/ui/` 与 `src/interactions/` 归 B；`src/styles.css` 归 C。改别人的文件先在这个 PR 里说一声。
 
 ## 分工总览
 
@@ -26,16 +30,20 @@
 
 **目标**：模型交付当天，30 分钟内完成替换并上线。
 
-- [ ] 写 `models/parts.json` 的 schema 与校验脚本（节点名、assembled/exploded 数组、必填字段），命名对不上直接报错
-- [ ] 接 `GLTFLoader` + Draco 解码，路径 `public/models/`；加载中显示进度，失败自动落 SVG 降级
-- [ ] 补 `bindRealMeshes()`：按 `name` 把 GLB 网格塞进现有 Group，保留装配/爆炸变换
-- [ ] 预算检查脚本：三角面数、文件体积、材质数、draw call 粗算，一条命令出报告
+- [x] 写 `models/parts.json` 的 schema 与校验脚本（节点名、assembled/exploded 数组、必填字段），命名对不上直接报错
+- [x] 接 `GLTFLoader` + Draco 解码，路径 `public/models/`；加载中显示进度；模型缺失/超时保留 3D 占位，只有 WebGL 不可用或场景初始化失败才落 SVG
+- [x] 补 `bindRealMeshes()`：按 `name` 把 GLB 网格塞进现有 Group，保留装配/爆炸变换
+- [x] 预算检查脚本：三角面数、文件体积、材质数、draw call 粗算，一条命令出报告
 - [ ] 用免费 GLB（比如 Khronos 示例模型）先跑通全链路，证明「不是等模型才能测」
 - [ ] 加载性能：首屏不阻塞文案，3D 分块异步，弱网 3 秒内出内容
 
 **交付**：`tools/check-model.mjs`、加载与降级链路、一份「换模型操作手册」（5 步以内）
 
 **验收**：拿任意一个 GLB 丢进 `public/models/`，页面能显示；删掉文件，自动回占位不白屏。
+
+> 11-11 进展：加载链路与绑定代码已落（`src/stage/loader.js`，`scene.js` 异步接入），Draco 解码器已本地化到 `public/draco/`。
+> 11-12 决定：隔舱板按实船 **12 道**，白名单已扩到 `bulkhead_12`；面数上限已从 35,000 调到 **60,000**，理由见 `REPORT.md` 的预算说明。
+> 待真机/真模验证：示例 GLB 跑通、弱网首屏耗时，两项完成后再勾。
 
 ---
 
@@ -112,3 +120,15 @@
 - 不改 7 个 beat 的叙事顺序
 - 不等模型才开始测 3D 链路
 - 不在 11-14 之后加新功能
+
+---
+
+## A · 换模型 5 步
+
+1. 把导出的 `ship.glb` 放到 `public/models/ship.glb`。允许 Draco 压缩，解码器已在 `public/draco/` 本地，不依赖 CDN。
+2. 打开 `models/parts.json`，核对节点名。模型新增零件（例如 12 道隔舱板）就在这里补 `{ "name": "bulkhead_04", "assembled": [0,0,0], "exploded": [0,8,0] }`，然后跑 `npm run parts:sync` 同步到 `public/models/parts.json`。
+3. 跑 `npm run check:parts`。节点名不在白名单、`assembled`/`exploded` 不是 3 个数字、名称重复，都会逐条报错并退出 1。
+4. 跑 `npm run check:model`。默认上限 60,000 面、5 MB，超标会打印具体数值并退出 1。超标先减面或换 Draco，不要直接调高阈值。
+5. `npm run dev` 打开页面。零件被替换说明成功；看不到就开 Console 看 `[stage]` 开头的日志。删掉 `ship.glb` 刷新，应回到占位几何且不白屏。
+
+> 12 道隔舱板的模型：`parts.json` 里写满 12 条，`scene.js` 会为占位几何里没有的隔舱补建 Group，否则 GLB 里多出来的节点会被静默丢掉。
