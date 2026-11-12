@@ -57,3 +57,11 @@
 6. **beat 7 多余 eyebrow、beat 3 缺 `**plus**`**（重要级，`src/content/beats.js` + `src/ui/overlay.js`）— 删除 b7 的 eyebrow；b3 英文补 `**plus**`；overlay 对无 eyebrow 的 beat 隐藏标题眉，正文用 `inlineMarkup` 把 `**粗体**`/`*斜体*` 渲染成 `<strong>`/`<em>`。验证：node 断言确认 b3 含 `**plus**`、b7 无 `eyebrow` 字段。
 7. **DPR 只在初始化设定**（重要级，`src/stage/scene.js`）— 抽出 `clampedDPR()`（clamp 到 2），`resize()` 里重新读取并 `setPixelRatio`。验证：代码路径检查确认 resize 会更新 DPR。
 8. **`innerHeight` 覆盖 CSS `100svh` 导致跳动**（重要级，`src/main.js`）— 用隐藏 probe 读稳定 `100svh` 存为 `vhBaseline`，`layout()` 与主循环 `max` 均改用该基准（`innerHeight` 仅作不支持 svh 时的兜底）。验证：grep 确认 `layout()` 与进度分母不再直接用 `innerHeight`，地址栏收缩时基准不变。
+
+
+## 3D 预算：三角面上限调整为 60,000
+
+- 原定 ≤ 35,000 面，按 3 道示意隔舱板估算。
+- 11-12 决定隔舱板按实船做 **12 道**（与内容组事实核查一致），零件数从 3 增到 12，原阈值不再适用。
+- 新上限：**≤ 60,000 三角面**，体积仍 ≤ 5 MB，draw call 仍 ≤ 20。`tools/check-model.mjs` 默认值已同步。
+- 复核方式：模型交付后跑 `npm run check:model`，若超标优先降船体曲面细分，不拆隔舱板。
