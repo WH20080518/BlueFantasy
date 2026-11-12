@@ -71,7 +71,7 @@ function bindRealMeshes(gltf, nodes, { unit } = {}) {
   // 直接替换会让 refs 指向已移除的网格，表现为「点了没反应」。P2 阶段先保留占位。
   const KEEP_PLACEHOLDER = new Set([
     'plank_seam', 'nail_set', 'caulk_layer',
-    'joint_tenon', 'joint_mortise', 'treenail',
+    'joint_tenon', 'joint_mortise',
   ])
   const root = gltf?.scene ?? gltf?.scenes?.[0]
   if (!root) return 0
@@ -211,7 +211,16 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       if (!gltf || realModel) return
       realModel = gltf
       const bound = bindRealMeshes(gltf, nodes, { unit: spec?.unit })
-      if (bound > 0) console.info(`[stage] GLB 已接入 ${bound} 个零件`)
+      if (bound > 0) {
+        // 隔舱被替换后，flood 里的旧材质引用失效；把 12 道重新登记给它
+        const list = []
+        for (let i = 1; i <= 12; i += 1) {
+          const g = nodes.get(`bulkhead_${String(i).padStart(2, '0')}`)
+          if (g) list.push(g)
+        }
+        flood.rebindBulkheads(list)
+        console.info(`[stage] GLB 已接入 ${bound} 个零件，隔舱 ${list.length} 道`)
+      }
     })
     .catch((err) => console.warn('[stage] 接入 GLB 失败：', err))
 
@@ -278,10 +287,11 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       parts.setVisible(visibleSet)
 
       // 剖舱与漏水两屏需要看进船体：有真模型时把外壳调透明，其余屏恢复不透明
-      const hullNode = nodes.get('hull_shell')
-      if (hullNode) {
-        const seeThrough = beat.id === 'b4' || beat.id === 'b5'
-        hullNode.traverse((obj) => {
+      const seeThrough = beat.id === 'b4' || beat.id === 'b5'
+      for (const nm of ['hull_shell', 'ship_deck']) {
+        const node = nodes.get(nm)
+        if (!node) continue
+        node.traverse((obj) => {
           if (!obj.isMesh || !obj.material) return
           obj.material.transparent = seeThrough
           obj.material.opacity = seeThrough ? 0.32 : 1

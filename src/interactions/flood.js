@@ -60,6 +60,17 @@ export function createFlood(refs, reducedMotion) {
         apply()
       }
     },
+    // 真模型替换占位几何后，重新登记隔舱材质，否则淡出作用在旧网格上
+    rebindBulkheads(list) {
+      bulkMats.length = 0
+      list.forEach((g) =>
+        g.traverse((o) => {
+          if (!o.isMesh || !o.material) return
+          o.material.transparent = true
+          bulkMats.push(o.material)
+        }),
+      )
+    },
     reset() {
       active = null
       target = null
