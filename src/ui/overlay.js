@@ -1,6 +1,7 @@
 import { beats, ui } from '../content/beats.js'
 import { termWall, termById, nodeTerms } from '../content/glossary.js'
 import { createQuiz } from './quiz.js'
+import { sealChars } from '../content/seal.js'
 
 // 文案渲染、进度条、语言切换、beat 指示、名称浮层。文案全部来自 content/，这里不做硬编码。
 
@@ -48,6 +49,7 @@ export function createOverlay({ reducedMotion, fallbackMode, handlers }) {
     bar: $('progressbar'),
     langToggle: $('lang-toggle'),
     partLabel: $('part-label'),
+    seal: $('seal'),
     quizStep: $('quiz-step'),
     quizQ: $('quiz-q'),
     quizOpts: $('quiz-opts'),
@@ -180,6 +182,16 @@ export function createOverlay({ reducedMotion, fallbackMode, handlers }) {
 
     if (beat.interaction === 'terms') renderTerms()
 
+    if (el.seal) {
+      el.seal.replaceChildren()
+      if (sealChars[i]) {
+        sealChars[i].zh.forEach((ch) => {
+          const span = document.createElement('span')
+          span.textContent = ch
+          el.seal.appendChild(span)
+        })
+      }
+    }
     el.canvas.setAttribute('aria-label', t(beat.stageLabel))
     el.indicator.textContent = `${i + 1} / ${beats.length}`
   }
