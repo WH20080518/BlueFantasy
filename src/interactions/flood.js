@@ -1,5 +1,6 @@
 // 漏水实验状态机（beat 5）。
 // 两个状态：with-bulkheads / without-bulkheads。切换可中断、可重复播放，目标 1.2s 内收敛。
+// 互斥 + 排队：转场进行中只记录「最后一次」请求，当前转场收敛后再执行，不叠加多次补间。
 
 const DRY = { shipY: 0, list: 0, compWater: null, fullWater: null, bulkOpacity: 1 }
 
@@ -19,6 +20,8 @@ export function createFlood(refs, reducedMotion) {
   const state = { ...DRY, compWater: water.hiddenY, fullWater: water.hiddenY }
   let target = null
   let active = null
+  // 转场中收到的请求：只保留最后一个，避免连点叠加。
+  let pending = null
 
   function apply() {
     ship.position.y = state.shipY
@@ -45,6 +48,18 @@ export function createFlood(refs, reducedMotion) {
     'without-bulkheads': () => ({ shipY: -8, list: 0, compWater: water.hiddenY, fullWater: water.fullLevel, bulkOpacity: 0.06 }),
   }
 
+  // 开始一次转场（调用方保证当前没有进行中的转场）。
+  function begin(name, replay) {
+    if (replay || active === name) snapDry()
+    active = name
+    target = PRESETS[name]()
+    if (reducedMotion()) {
+      Object.assign(state, target)
+      target = null
+      apply()
+    }
+  }
+
   return {
     get active() {
       return active
@@ -52,21 +67,37 @@ export function createFlood(refs, reducedMotion) {
     // replay=true 时先复位到干船再播一遍
     setState(name, { replay = false } = {}) {
       if (!PRESETS[name]) return
-      if (replay || active === name) snapDry()
-      active = name
-      target = PRESETS[name]()
-      if (reducedMotion()) {
-        Object.assign(state, target)
-        apply()
+      // 互斥：转场中不开启第二条补间。
+      if (target) {
+        // 当前转场本来就指向该状态：重复点击忽略，不排队、不重播。
+        // 同时取消已排队的其他目标，保证「最后一次点击」生效。
+        if (name === active) {
+          pending = null
+          return
+        }
+        // 转向其他状态：只保留最后一次请求，收敛后再执行。
+        if (pending && pending.name === name) pending.replay = pending.replay || replay
+        else pending = { name, replay }
+        return
       }
+      begin(name, replay)
     },
     reset() {
       active = null
       target = null
+      pending = null
       snapDry()
     },
     update(dt) {
-      if (!target) return
+      if (!target) {
+        // 理论上 pending 会在收敛时立即出队；这里兜底，保证请求不丢。
+        if (pending) {
+          const next = pending
+          pending = null
+          begin(next.name, next.replay)
+        }
+        return
+      }
       const k = 1 - Math.exp(-dt * 4.5)
       let settled = true
       for (const key of Object.keys(target)) {
@@ -77,6 +108,12 @@ export function createFlood(refs, reducedMotion) {
       if (settled) {
         Object.assign(state, target)
         target = null
+        // 当前转场收敛后再执行排队中的最后一次请求。
+        if (pending) {
+          const next = pending
+          pending = null
+          begin(next.name, next.replay)
+        }
       }
       apply()
     },
