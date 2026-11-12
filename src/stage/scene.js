@@ -224,6 +224,11 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
     })
     .catch((err) => console.warn('[stage] 接入 GLB 失败：', err))
 
+  // DEV 调试钩子：浏览器里可直接读场景状态
+  if (import.meta.env.DEV) {
+    window.__bf = { scene, camera, renderer }
+  }
+
   const parts = new Parts(nodes)
   const flood = createFlood({ ship: shipGroup, compWater: water.comp, fullWater: water.full, bulkheads, water }, reducedMotion)
   const caulk = createCaulk(
