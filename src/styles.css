@@ -698,7 +698,8 @@ html.intro-locked body {
 
 /* 开场时把正文面板和顶栏藏起来，避免半透明遮罩下透出「重影」 */
 html.intro-locked .copy,
-html.intro-locked .topbar {
+html.intro-locked .topbar,
+html.intro-locked .seal {
   opacity: 0;
 }
 
@@ -787,10 +788,7 @@ html.intro-locked .topbar {
   }
 
   /* 开场时把正文面板和顶栏藏起来，避免半透明遮罩下透出「重影」 */
-html.intro-locked .copy,
-html.intro-locked .topbar {
-  opacity: 0;
-}
+
 
 .intro.is-leaving {
     transform: none;
