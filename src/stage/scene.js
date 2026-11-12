@@ -25,6 +25,13 @@ async function loadPartsSpec(base, timeoutMs = 8000) {
   }
 }
 
+// parts.json 允许两种形态：数组（旧）或 { unit, parts }（推荐）。
+function normalizeSpec(raw) {
+  if (Array.isArray(raw)) return { unit: null, parts: raw }
+  if (raw && Array.isArray(raw.parts)) return { unit: raw.unit ?? null, parts: raw.parts }
+  return null
+}
+
 // 真模型材质统一到项目四色，避免 GLB 自带贴图带来的体积与风格不一致。
 const MODEL_PALETTE = {
   wood: 0x6b4b33,
@@ -59,24 +66,51 @@ function sharedMaterial(color) {
 // - 只替换子物体，保留 Group 的 position/rotation（装配位、爆炸位都在 Group 上）
 // - 子物体自身位移归零，单位按包围盒判断（>100 视为毫米，整树 0.001）
 // 返回成功接上的零件数。
-function bindRealMeshes(gltf, nodes) {
+function bindRealMeshes(gltf, nodes, { unit } = {}) {
   const root = gltf?.scene ?? gltf?.scenes?.[0]
   if (!root) return 0
 
   root.updateMatrixWorld(true)
+
+  const UNIT_SCALE = { m: 1, cm: 0.01, mm: 0.001 }
   const size = new THREE.Box3().setFromObject(root).getSize(new THREE.Vector3())
   const maxDim = Math.max(size.x, size.y, size.z)
-  const unitScale = maxDim > 100 ? 0.001 : 1
+
+  let unitScale
+  if (unit && UNIT_SCALE[unit] !== undefined) {
+    unitScale = UNIT_SCALE[unit]
+  } else {
+    // 没声明单位时才靠包围盒推断；推断结果还要过 20–40 m 的船体校验
+    unitScale = maxDim > 100 ? 0.001 : 1
+    console.warn('[stage] parts.json 未声明 unit，按包围盒推断；建议写 "unit": "m"')
+  }
+
+  const scaledMax = maxDim * unitScale
+  if (scaledMax < 20 || scaledMax > 40) {
+    console.warn('[stage] 模型最大边 ' + scaledMax.toFixed(1) + ' m，超出船体 20–40 m 预期，检查 unit 或模型比例')
+  }
+
+  const worldPos = new THREE.Vector3()
+  const worldQuat = new THREE.Quaternion()
+  const worldScale = new THREE.Vector3()
+  const parentInv = new THREE.Matrix4()
+  const worldMat = new THREE.Matrix4()
+  const localMat = new THREE.Matrix4()
 
   let bound = 0
   nodes.forEach((group, name) => {
     const source = root.getObjectByName(name)
     if (!source) return
 
+    // 父级可能是带变换的空节点或骨架：先取世界变换，再换算成挂载后的局部变换
+    source.getWorldPosition(worldPos)
+    source.getWorldQuaternion(worldQuat)
+    source.getWorldScale(worldScale)
+
     const clone = source.clone(true)
     clone.position.set(0, 0, 0)
-    clone.rotation.set(0, 0, 0)
-    clone.scale.copy(source.scale).multiplyScalar(unitScale)
+    clone.quaternion.identity()
+    clone.scale.set(1, 1, 1)
 
     const material = sharedMaterial(paletteFor(name))
     clone.traverse((obj) => {
@@ -88,6 +122,13 @@ function bindRealMeshes(gltf, nodes) {
 
     group.clear()
     group.add(clone)
+    group.updateWorldMatrix(true, false)
+
+    worldMat.compose(worldPos, worldQuat, worldScale.clone().multiplyScalar(unitScale))
+    parentInv.copy(group.matrixWorld).invert()
+    localMat.multiplyMatrices(parentInv, worldMat)
+    localMat.decompose(clone.position, clone.quaternion, clone.scale)
+
     bound += 1
   })
 
@@ -131,9 +172,9 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   // parts.json（可选）：应用装配/爆炸位
   // 实船 12 道隔舱板时，占位几何只有 3 道；这里按 parts.json 补建缺失的 Group，
   // 否则 GLB 里多出来的节点没有容器可挂。
-  const spec = await loadPartsSpec(base)
-  if (Array.isArray(spec)) {
-    spec.forEach((p) => {
+  const spec = normalizeSpec(await loadPartsSpec(base))
+  if (spec) {
+    spec.parts.forEach((p) => {
       let g = nodes.get(p.name)
       if (!g) {
         g = new THREE.Group()
@@ -158,7 +199,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
     .then((gltf) => {
       if (!gltf || realModel) return
       realModel = gltf
-      const bound = bindRealMeshes(gltf, nodes)
+      const bound = bindRealMeshes(gltf, nodes, { unit: spec?.unit })
       if (bound > 0) console.info(`[stage] GLB 已接入 ${bound} 个零件`)
     })
     .catch((err) => console.warn('[stage] 接入 GLB 失败：', err))
