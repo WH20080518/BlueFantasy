@@ -42,6 +42,8 @@
 
 ## 1. 结构词
 
+> b6 的迁移视图与 `migration` 数据字段见 [`16-term-beat-spec.md`](16-term-beat-spec.md)。
+
 | 中文 | 英文 | 类型 | 说明 / 备注 |
 |---|---|---|---|
 | 榫合 | joinery | 解释译 | 作品名英译用 *Joinery*，标题处不解释 |
