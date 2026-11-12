@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:parts": "node tools/check-parts.mjs",
+    "check:model": "node tools/check-model.mjs",
+    "parts:sync": "node tools/check-parts.mjs --sync"
   },
   "dependencies": {
     "three": "^0.170.0"

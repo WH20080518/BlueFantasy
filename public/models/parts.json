@@ -1,0 +1,288 @@
+[
+  {
+    "name": "hull_shell",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      0,
+      5,
+      0
+    ]
+  },
+  {
+    "name": "ship_deck",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      0,
+      5,
+      0
+    ]
+  },
+  {
+    "name": "keel",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      0,
+      -3,
+      0
+    ]
+  },
+  {
+    "name": "stem",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      7,
+      2,
+      0
+    ]
+  },
+  {
+    "name": "sternpost",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      -7,
+      2,
+      0
+    ]
+  },
+  {
+    "name": "bulkhead_01",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      0,
+      0,
+      6
+    ]
+  },
+  {
+    "name": "bulkhead_02",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      0,
+      0,
+      6
+    ]
+  },
+  {
+    "name": "bulkhead_03",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      0,
+      0,
+      6
+    ]
+  },
+  {
+    "name": "bulkhead_04",
+    "assembled": [
+      -4.64,
+      0,
+      0
+    ],
+    "exploded": [
+      -4.64,
+      0,
+      6
+    ]
+  },
+  {
+    "name": "bulkhead_05",
+    "assembled": [
+      -2.78,
+      0,
+      0
+    ],
+    "exploded": [
+      -2.78,
+      0,
+      6
+    ]
+  },
+  {
+    "name": "bulkhead_06",
+    "assembled": [
+      -0.93,
+      0,
+      0
+    ],
+    "exploded": [
+      -0.93,
+      0,
+      6
+    ]
+  },
+  {
+    "name": "bulkhead_07",
+    "assembled": [
+      0.93,
+      0,
+      0
+    ],
+    "exploded": [
+      0.93,
+      0,
+      6
+    ]
+  },
+  {
+    "name": "bulkhead_08",
+    "assembled": [
+      2.78,
+      0,
+      0
+    ],
+    "exploded": [
+      2.78,
+      0,
+      6
+    ]
+  },
+  {
+    "name": "bulkhead_09",
+    "assembled": [
+      4.64,
+      0,
+      0
+    ],
+    "exploded": [
+      4.64,
+      0,
+      6
+    ]
+  },
+  {
+    "name": "bulkhead_10",
+    "assembled": [
+      6.49,
+      0,
+      0
+    ],
+    "exploded": [
+      6.49,
+      0,
+      6
+    ]
+  },
+  {
+    "name": "bulkhead_11",
+    "assembled": [
+      8.35,
+      0,
+      0
+    ],
+    "exploded": [
+      8.35,
+      0,
+      6
+    ]
+  },
+  {
+    "name": "bulkhead_12",
+    "assembled": [
+      10.2,
+      0,
+      0
+    ],
+    "exploded": [
+      10.2,
+      0,
+      6
+    ]
+  },
+  {
+    "name": "plank_seam",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      0,
+      6,
+      3
+    ]
+  },
+  {
+    "name": "nail_set",
+    "assembled": [
+      14.6,
+      0,
+      0.72
+    ],
+    "exploded": [
+      14.6,
+      0,
+      1.6
+    ]
+  },
+  {
+    "name": "caulk_layer",
+    "assembled": [
+      14.6,
+      0,
+      0.45
+    ],
+    "exploded": [
+      14.6,
+      0,
+      1.3
+    ]
+  },
+  {
+    "name": "joint_tenon",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      5,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "joint_mortise",
+    "assembled": [
+      0,
+      0,
+      0
+    ],
+    "exploded": [
+      5,
+      5,
+      0
+    ]
+  }
+]
