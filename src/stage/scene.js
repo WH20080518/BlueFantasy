@@ -299,7 +299,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
         node.traverse((obj) => {
           if (!obj.isMesh || !obj.material) return
           obj.material.transparent = seeThrough
-          obj.material.opacity = seeThrough ? 0.32 : 1
+          obj.material.opacity = seeThrough ? 0.55 : 1
           obj.material.depthWrite = !seeThrough
         })
       }
