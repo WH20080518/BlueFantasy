@@ -197,7 +197,7 @@ function createFBO(w, h, type) {
   }
 }
 
-export function createFluidSolver(renderer, { simRes = 96, dyeRes = 192, pressureIterations = 18 } = {}) {
+export function createFluidSolver(renderer, { simRes = 96, dyeRes = 192, pressureIterations = 12 } = {}) {
   const gl = renderer.getContext()
   const isWebGL2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext
   // 半浮点能不能渲染，决定这套细节要不要开
@@ -288,10 +288,11 @@ export function createFluidSolver(renderer, { simRes = 96, dyeRes = 192, pressur
   })
 
   function blit(target, mat) {
+    const prev = renderer.getRenderTarget()
     mesh.material = mat
     renderer.setRenderTarget(target)
     renderer.render(scene, cam)
-    renderer.setRenderTarget(null)
+    renderer.setRenderTarget(prev)
   }
 
   function resize() {

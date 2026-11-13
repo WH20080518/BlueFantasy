@@ -293,6 +293,7 @@ export function createWater({ floorY = -11.6, renderer = null } = {}) {
   let comp = 1
   let elapsed = 0
   let splatClock = 0
+  let fluidIdleFrames = 0
 
   function compIndexAt(x) {
     let i = 0
@@ -484,22 +485,32 @@ export function createWater({ floorY = -11.6, renderer = null } = {}) {
   function update(dt) {
     elapsed += dt
     surfaceUniforms.uTime.value = elapsed
+    if (!fluid) return
+
     // 仍然在流动的舱持续补充扰动，避免水面「死掉」
-    if (fluid) {
-      splatClock += dt
-      if (splatClock > 0.09) {
-        splatClock = 0
-        for (let i = 0; i < comp; i += 1) {
-          if (flows[i] > 0.04) {
-            const cx = (edges[i] + edges[i + 1]) / 2 + (Math.random() - 0.5) * (edges[i + 1] - edges[i]) * 0.5
-            splatAt(cx, (Math.random() - 0.5) * 11, flows[i] * 0.7)
-          }
+    let flowing = false
+    splatClock += dt
+    if (splatClock > 0.09) {
+      splatClock = 0
+      for (let i = 0; i < comp; i += 1) {
+        if (flows[i] > 0.04) {
+          const cx = (edges[i] + edges[i + 1]) / 2 + (Math.random() - 0.5) * (edges[i + 1] - edges[i]) * 0.5
+          splatAt(cx, (Math.random() - 0.5) * 11, flows[i] * 0.7)
+          flowing = true
         }
       }
-      fluid.step(dt)
-      surfaceUniforms.uVelocity.value = fluid.velocityTexture
-      surfaceUniforms.uDye.value = fluid.dyeTexture
     }
+
+    // 求解器每帧约 19 个离屏 pass（修正压力后降到 12 次迭代）。
+    // 静止且没人看的时候没必要一直算：没流动就每 3 帧走一步。
+    // 走动起来（有流量/有打点）立刻恢复每帧。
+    const moving = flowing || flows.some((f) => f > 0.02)
+    fluidIdleFrames = moving ? 0 : fluidIdleFrames + 1
+    if (!moving && fluidIdleFrames % 3 !== 0) return
+
+    fluid.step(dt)
+    surfaceUniforms.uVelocity.value = fluid.velocityTexture
+    surfaceUniforms.uDye.value = fluid.dyeTexture
   }
 
   setEdges(edges)
