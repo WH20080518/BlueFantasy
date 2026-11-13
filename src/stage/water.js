@@ -15,7 +15,7 @@ import { createFluidSolver } from './fluid.js'
 const MAX_COMP = 16
 const NX = 12 // 每舱沿 x 的网格段数
 const NZ = 8 // 沿 z 的段数
-const INSET = 0.62 // 距舱壁板的间隙（板半厚 0.6，再留 0.02 防 z-fighting）
+const INSET = 0.06 // 几乎贴住舱壁：留缝会让水看起来是一块悬空的板子
 const X_MIN = -40
 const X_MAX = 40
 const Z_HALF = 13
@@ -110,6 +110,10 @@ precision highp float;
 uniform sampler2D uRipple;
 uniform sampler2D uVelocity;
 uniform sampler2D uDye;
+uniform sampler2D uRefl;
+uniform vec2 uResolution;
+uniform float uHasRefl;
+uniform float uTimeB;
 uniform float uTime;
 uniform float uFluid;
 uniform float uOpacity;
@@ -129,30 +133,46 @@ void main() {
   vec3 V = normalize(cameraPosition - vWorldPos);
 
   // 两层法线：一层程序化波纹，一层由流体速度场拉扯
-  vec3 rA = texture2D(uRipple, vUv2 * 6.0 + vec2(uTime * 0.017, uTime * 0.011)).xyz * 2.0 - 1.0;
-  vec3 rB = texture2D(uRipple, vUv2 * 13.0 + vec2(-uTime * 0.009, uTime * 0.014)).xyz * 2.0 - 1.0;
+  // 尺度要按船长的量级给：重复太密会看出布纹，反而不像水
+  vec3 rA = texture2D(uRipple, vUv2 * 2.6 + vec2(uTime * 0.017, uTime * 0.011)).xyz * 2.0 - 1.0;
+  vec3 rB = texture2D(uRipple, vUv2 * 5.4 + vec2(-uTime * 0.009, uTime * 0.014)).xyz * 2.0 - 1.0;
   vec2 vel = (texture2D(uVelocity, vUv2).xy) * uFluid;
 
   vec3 N = normalize(vec3(
-    rA.x * 0.55 + rB.x * 0.30 + vel.x * 0.0065,
+    rA.x * 0.42 + rB.x * 0.22 + vel.x * 0.0065,
     1.0,
-    rA.y * 0.55 + rB.y * 0.30 + vel.y * 0.0065
+    rA.y * 0.42 + rB.y * 0.22 + vel.y * 0.0065
   ));
 
   float fres = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 3.0);
 
-  // 天空反射：用竖直渐变近似，比 envMap 稳，也不会把整个水面照成白片
-  vec3 sky = mix(vec3(0.055, 0.085, 0.10), vec3(0.30, 0.37, 0.40), clamp(N.y * 0.5 + 0.5, 0.0, 1.0));
+  // 反射：真实渲染一张镜像视图（船体、舱壁、天花都在里面），
+  // 按屏幕坐标取样，再用波纹法线做偏移。
+  // 手写天光渐变永远只能是「一块有渐变色的板」，反射里有船体轮廓才读得出是水。
+  vec3 R = reflect(-V, N);
+  vec3 reflCol = vec3(0.0);
+  if (uHasRefl > 0.5) {
+    vec2 suv = gl_FragCoord.xy / uResolution;
+    suv.y = 1.0 - suv.y;
+    vec2 offs = vec2(N.x, N.z) * 0.055;
+    reflCol = texture2D(uRefl, clamp(suv + offs, vec2(0.001), vec2(0.999))).rgb;
+  } else {
+    float up = clamp(R.y, 0.0, 1.0);
+    reflCol = mix(vec3(0.05, 0.07, 0.08), vec3(0.55, 0.62, 0.66), smoothstep(0.0, 0.85, up));
+  }
+  // 暗舱里的镜面反射几乎是黑的（反射到的是甲板背面），
+  // 所以掺一部分「舱口天光」，再染上水本身的青绿，才不会读成一个洞
+  vec3 sky = mix(reflCol, vec3(0.30, 0.40, 0.44), 0.35) * vec3(0.82, 1.0, 1.02);
 
   // 体积吸收：浅处透青，深处压到墨绿
   vec3 body = mix(uShallow, uDeep, clamp(vDepthC, 0.0, 1.0));
 
-  vec3 col = mix(body, sky, mix(0.04, 0.80, fres));
+  vec3 col = mix(body, sky, clamp(0.12 + fres * 0.75, 0.0, 1.0));
 
   // 太阳高光
   vec3 L = normalize(uSunDir);
-  float spec = pow(max(dot(reflect(-V, N), L), 0.0), 80.0);
-  col += vec3(1.0, 0.95, 0.86) * spec * 0.9;
+  float spec = pow(max(dot(R, L), 0.0), 220.0);
+  col += vec3(1.0, 0.96, 0.88) * spec * 1.6;
 
   // 泡沫：染料浓度 + 波纹峰值，靠近浅滩（vDepthC≈0）更容易起泡
   float dye = texture2D(uDye, vUv2).r * uFluid;
@@ -161,7 +181,8 @@ void main() {
   float foam = smoothstep(0.30, 0.85, dye * 1.6 + peak * 0.25 + shore * 0.35) * (0.35 + shore * 0.65);
   col = mix(col, uFoam, clamp(foam, 0.0, 0.92));
 
-  float alpha = mix(uOpacity, 0.97, fres);
+  // 深处的舱底本来就看不见，水越深越不透；掠射角再抬一点
+  float alpha = mix(uOpacity * 0.72, 0.95, fres) + clamp(vDepthC, 0.0, 1.0) * 0.12;
   alpha = max(alpha, foam * 0.85);
 
   gl_FragColor = vec4(col, alpha);
@@ -209,12 +230,30 @@ void main() {
 }
 `
 
-export function createWater({ floorY = -11.6, renderer = null } = {}) {
+export function createWater({ floorY = -11.6, renderer = null, scene = null, camera = null } = {}) {
   const ripple = makeRippleNormal()
   ripple.repeat.set(1, 1)
 
   const fluid = renderer ? createFluidSolver(renderer) : null
   const fluidOn = fluid ? 1 : 0
+
+  // 平面反射：把相机按水面镜像，渲染一张低分辨率视图。
+  // 每帧一次额外的 render，换来水里能看见船体轮廓——这是「像水」的关键。
+  const REFL_SIZE = 512
+  const canRefl = !!(renderer && scene && camera)
+  const reflRT = canRefl
+    ? new THREE.WebGLRenderTarget(REFL_SIZE, REFL_SIZE, {
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter,
+        type: THREE.UnsignedByteType,
+      })
+    : null
+  const reflCam = canRefl ? camera.clone() : null
+  const reflMat = new THREE.Matrix4()
+  if (reflCam) {
+    reflCam.matrixAutoUpdate = false
+    reflCam.frustumCulled = false
+  }
 
   /* ---------- 水面 ---------- */
   // 每个舱单独一块水平面片，舱与舱之间不共享顶点。
@@ -235,10 +274,14 @@ export function createWater({ floorY = -11.6, renderer = null } = {}) {
     uTime: { value: 0 },
     uFluid: { value: fluidOn },
     uOpacity: { value: 0.82 },
-    uDeep: { value: new THREE.Color(0x061b23) },
-    uShallow: { value: new THREE.Color(0x1c5a66) },
-    uFoam: { value: new THREE.Color(0xcfdedb) },
+    uDeep: { value: new THREE.Color(0x03151b) },
+    uShallow: { value: new THREE.Color(0x0e3b42) },
+    uFoam: { value: new THREE.Color(0xb9cbc7) },
     uSunDir: { value: new THREE.Vector3(0.45, 0.78, 0.44) },
+    uRefl: { value: reflRT ? reflRT.texture : ripple },
+    uResolution: { value: new THREE.Vector2(1, 1) },
+    uHasRefl: { value: 0 },
+    uTimeB: { value: 0 },
   }
 
   const surfaceMat = new THREE.ShaderMaterial({
@@ -263,8 +306,8 @@ export function createWater({ floorY = -11.6, renderer = null } = {}) {
   bodyGeo.setAttribute('color', new THREE.BufferAttribute(bodyCol, 3))
 
   const bodyUniforms = {
-    uDeep: { value: new THREE.Color(0x061b23) },
-    uShallow: { value: new THREE.Color(0x1c5a66) },
+    uDeep: { value: new THREE.Color(0x03151b) },
+    uShallow: { value: new THREE.Color(0x0e3b42) },
     uOpacity: { value: 1 },
   }
   const bodyMat = new THREE.ShaderMaterial({
@@ -318,7 +361,8 @@ export function createWater({ floorY = -11.6, renderer = null } = {}) {
   }
 
   function halfWidthFor(x, lvl) {
-    return Math.max(0.6, halfWidthAt(x) * widthScaleAt(lvl) - 1.4)
+    // 只留 0.3 的余量贴住船壳内壁，缩得太多水就变成舱中间一小块
+    return Math.max(0.35, halfWidthAt(x) * widthScaleAt(lvl) - 0.3)
   }
 
   function rebuildSurface() {
@@ -482,9 +526,45 @@ export function createWater({ floorY = -11.6, renderer = null } = {}) {
     }
   }
 
+  // 镜像相机：绕 y = level 的水平面翻转，其余交给 three 的投影
+  function renderReflection(level) {
+    if (!canRefl || !group.visible) return
+    // 反射矩阵：y' = 2*level - y
+    reflMat.set(1, 0, 0, 0, 0, -1, 0, 2 * level, 0, 0, 1, 0, 0, 0, 0, 1)
+    camera.updateMatrixWorld()
+    reflCam.matrixWorld.multiplyMatrices(reflMat, camera.matrixWorld)
+    reflCam.matrixWorldInverse.copy(reflCam.matrixWorld).invert()
+    reflCam.projectionMatrix.copy(camera.projectionMatrix)
+    reflCam.projectionMatrixInverse.copy(camera.projectionMatrixInverse)
+
+    const prevRT = renderer.getRenderTarget()
+    const wasVisible = group.visible
+    group.visible = false // 自己不进反射
+    renderer.setRenderTarget(reflRT)
+    renderer.clear()
+    renderer.render(scene, reflCam)
+    renderer.setRenderTarget(prevRT)
+    group.visible = wasVisible
+    surfaceUniforms.uHasRefl.value = 1
+    surfaceUniforms.uResolution.value.set(
+      renderer.domElement.width || 1,
+      renderer.domElement.height || 1,
+    )
+  }
+
   function update(dt) {
     elapsed += dt
     surfaceUniforms.uTime.value = elapsed
+    // 各舱水位差很小，取平均值当反射平面，误差看不出
+    let lvlSum = 0
+    let lvlN = 0
+    for (let i = 0; i < comp; i += 1) {
+      if (levels[i] > floorY + 0.05) {
+        lvlSum += levels[i]
+        lvlN += 1
+      }
+    }
+    if (lvlN > 0) renderReflection(lvlSum / lvlN)
     if (!fluid) return
 
     // 仍然在流动的舱持续补充扰动，避免水面「死掉」

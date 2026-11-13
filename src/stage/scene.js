@@ -210,6 +210,12 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   cutFill.visible = false
   scene.add(cutFill)
 
+  // 舱内点光：剖开之后舱里几乎没有任何直接照明，
+  // 水面反射到的是甲板背面（全黑），看起来就是个洞。补一盏悬在舱口上方的灯。
+  const bilgeLight = new THREE.PointLight(0xbfd8d2, 0, 90, 1.6)
+  bilgeLight.position.set(14, 14, 6)
+  scene.add(bilgeLight)
+
   const built = buildPlaceholders()
   const { shipGroup, detailGroup, shadow, nodes, joint, seam, bulkheads } = built
   scene.add(shipGroup, detailGroup, shadow)
@@ -293,7 +299,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
 
   const parts = new Parts(nodes)
   // 水面：一整片按舱分格的高度场，水位由 flood 的每个舱控制
-  const water = createWater({ floorY: -11.6, renderer })
+  const water = createWater({ floorY: -11.6, renderer, scene, camera })
   shipGroup.add(water.mesh)
   const flood = createFlood({ ship: shipGroup, water, bulkheads, floorY: -11.6, topY: 5.2 })
   const caulk = createCaulk(
@@ -354,6 +360,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       m.needsUpdate = true
     })
     cutFill.visible = on
+    bilgeLight.intensity = on ? 2.4 : 0
     // 隔舱材质换过实例，flood 里缓存的引用要重新登记，否则淡出作用在旧材质上
     flood.rebindBulkheads(bulkheadGroups())
   }
