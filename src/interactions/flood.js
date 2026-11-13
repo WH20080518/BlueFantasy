@@ -71,6 +71,10 @@ export function createFlood({ ship, water, bulkheads = [], floorY = -11.6, topY 
     water.setLevels(levels)
     water.setFlows(flows)
     water.mesh.visible = false
+    state.sink = 0
+    state.pitch = 0
+    ship.position.y = 0
+    ship.rotation.z = 0
   }
 
   setLayout(edges)
@@ -80,7 +84,9 @@ export function createFlood({ ship, water, bulkheads = [], floorY = -11.6, topY 
 
   function levelsFromVolumes() {
     for (let i = 0; i < comp; i += 1) {
-      levels[i] = floorY + Math.max(0, volumes[i]) / areas[i]
+      const lvl = floorY + Math.max(0, volumes[i]) / areas[i]
+      levels[i] = Math.min(maxLevel, Math.max(floorY, lvl))
+      volumes[i] = Math.max(0, Math.min(volumes[i], (maxLevel - floorY) * areas[i]))
     }
   }
 
@@ -103,18 +109,29 @@ export function createFlood({ ship, water, bulkheads = [], floorY = -11.6, topY 
       }
     }
 
-    // 相邻舱按水头差交换：open=0 时完全隔断，open=1 时自由连通
+    // 相邻舱按水头差交换：open=0 时完全隔断，open=1 时自由连通。
+    // 每条边的流量都要受两端实际存量约束，否则小舱同时向两侧出水会被抽成负体积。
     if (state.open > 0.01) {
       flows.fill(0)
       for (let i = 0; i < comp - 1; i += 1) {
         const dh = levels[i] - levels[i + 1]
         if (Math.abs(dh) < 0.005) continue
         const rate = Math.min(Math.abs(dh), k * 7.5 * state.open)
-        const dV = Math.sign(dh) * rate * Math.min(areas[i], areas[i + 1])
+        let dV = Math.sign(dh) * rate * Math.min(areas[i], areas[i + 1])
+        // 出水舱最多把存水放干；进水舱最多灌到上限水位
+        if (dV > 0) {
+          dV = Math.min(dV, Math.max(0, volumes[i]))
+          const room = (maxLevel - floorY) * areas[i + 1] - volumes[i + 1]
+          dV = Math.min(dV, Math.max(0, room))
+        } else {
+          dV = -Math.min(-dV, Math.max(0, volumes[i + 1]))
+          const room = (maxLevel - floorY) * areas[i] - volumes[i]
+          dV = -Math.min(-dV, Math.max(0, room))
+        }
         volumes[i] -= dV
         volumes[i + 1] += dV
-        flows[i] = Math.max(flows[i], rate)
-        flows[i + 1] = Math.max(flows[i + 1], rate)
+        flows[i] = Math.max(flows[i], Math.abs(dV) / Math.min(areas[i], areas[i + 1]))
+        flows[i + 1] = Math.max(flows[i + 1], Math.abs(dV) / Math.min(areas[i], areas[i + 1]))
       }
     } else {
       flows.fill(0)
@@ -187,6 +204,15 @@ export function createFlood({ ship, water, bulkheads = [], floorY = -11.6, topY 
         state.sink = 0
         state.pitch = 0
         state.open = 0
+        state.bulkOpacity = 1
+      }
+      // 从「无隔舱」切回「有隔舱」时，先前漫出去的水必须清掉：
+      // 隔舱板重新装回去，那几格水不会凭空留在原地，演示要回到「只有破口舱进水」
+      if (name === 'with-bulkheads' && state.mode !== 'with-bulkheads') {
+        volumes.fill(0)
+        levels.fill(floorY)
+        state.sink = 0
+        state.pitch = 0
         state.bulkOpacity = 1
       }
       state.mode = name

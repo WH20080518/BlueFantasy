@@ -157,8 +157,13 @@ export function createWater({ floorY = -11.6 } = {}) {
   }
 
   function setLevels(next) {
-    for (let i = 0; i < comp; i += 1) levels[i] = next[i]
-    rebuild()
+    let changed = false
+    for (let i = 0; i < comp; i += 1) {
+      if (Math.abs(levels[i] - next[i]) > 0.002) changed = true
+      levels[i] = next[i]
+    }
+    // 水位收敛后不再逐帧重建：2961 个顶点的写入与包围球计算没必要一直做
+    if (changed) rebuild()
   }
 
   function setFlows(next) {
