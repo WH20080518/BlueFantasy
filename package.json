@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "check:parts": "node tools/check-parts.mjs",
     "check:model": "node tools/check-model.mjs",
-    "parts:sync": "node tools/check-parts.mjs --sync"
+    "parts:sync": "node tools/check-parts.mjs --sync",
+    "predev": "node tools/check-parts.mjs --sync",
+    "prebuild": "node tools/check-parts.mjs --sync"
   },
   "dependencies": {
     "three": "^0.170.0"

@@ -62,11 +62,25 @@ try {
 }
 
 const errors = []
-if (!Array.isArray(data)) {
-  errors.push('顶层必须是数组')
+const UNIT_OK = ['m', 'cm', 'mm']
+let unit = null
+let list = data
+
+if (Array.isArray(data)) {
+  unit = null
+} else if (data && typeof data === 'object' && Array.isArray(data.parts)) {
+  unit = data.unit ?? null
+  list = data.parts
+  if (unit !== null && UNIT_OK.indexOf(unit) === -1) {
+    errors.push('unit 必须是 m / cm / mm 之一，收到 ' + unit)
+  }
 } else {
+  errors.push('顶层必须是数组，或 { unit, parts } 对象')
+}
+
+if (errors.length === 0) {
   const seen = new Set()
-  data.forEach((part, i) => {
+  list.forEach((part, i) => {
     const at = `第 ${i + 1} 项`
     if (!part || typeof part !== 'object' || Array.isArray(part)) {
       errors.push(`${at}：必须是对象`)
@@ -96,11 +110,11 @@ if (errors.length > 0) {
   process.exit(1)
 }
 
-console.log(`✓ ${file} OK：${data.length} 个零件`)
+console.log(`✓ ${file} OK：${list.length} 个零件` + (unit ? `，unit=${unit}` : ''))
 
 if (sync) {
   const out = resolve('public/models/parts.json')
   mkdirSync(dirname(out), { recursive: true })
-  writeFileSync(out, JSON.stringify(data, null, 2) + '\n')
+  writeFileSync(out, JSON.stringify(unit ? { unit, parts: list } : list, null, 2) + '\n')
   console.log(`→ 已同步到 ${out}`)
 }

@@ -251,6 +251,8 @@ body {
 
 .caulk-step {
   appearance: none;
+  min-height: 44px;
+  min-width: 44px;
   border: 1px solid var(--line);
   background: transparent;
   color: var(--paper);
@@ -311,6 +313,8 @@ body {
 
 .flood-btn {
   appearance: none;
+  min-height: 44px;
+  min-width: 44px;
   border: 0;
   background: transparent;
   color: var(--paper);

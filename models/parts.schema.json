@@ -1,44 +1,96 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "BlueFantasy parts.json",
-  "description": "GLB 节点名与装配/爆炸位。每个零件对应场景中的一个 Group。隔舱板按实船 12 道。",
-  "type": "array",
-  "items": {
-    "type": "object",
-    "additionalProperties": false,
-    "required": ["name", "assembled", "exploded"],
-    "properties": {
-      "name": {
-        "type": "string",
-        "enum": [
-          "hull_shell",
-          "ship_deck",
-          "keel",
-          "stem",
-          "sternpost",
-          "bulkhead_01",
-          "bulkhead_02",
-          "bulkhead_03",
-          "bulkhead_04",
-          "bulkhead_05",
-          "bulkhead_06",
-          "bulkhead_07",
-          "bulkhead_08",
-          "bulkhead_09",
-          "bulkhead_10",
-          "bulkhead_11",
-          "bulkhead_12",
-          "plank_seam",
-          "treenail",
-          "iron_nail",
-          "caulking_seam",
-          "joint_tenon",
-          "joint_mortise"
-        ]
-      },
-      "assembled": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
-      "exploded": { "type": "array", "items": { "type": "number" }, "minItems": 3, "maxItems": 3 },
-      "label": { "type": "string" }
+  "description": "GLB 节点名、装配/爆炸位与模型单位。推荐 { unit, parts }；旧格式纯数组仍兼容。",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unit",
+        "parts"
+      ],
+      "properties": {
+        "unit": {
+          "type": "string",
+          "enum": [
+            "m",
+            "cm",
+            "mm"
+          ]
+        },
+        "parts": {
+          "$ref": "#/$defs/parts"
+        }
+      }
+    },
+    {
+      "$ref": "#/$defs/parts"
+    }
+  ],
+  "$defs": {
+    "parts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "assembled",
+          "exploded"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "hull_shell",
+              "ship_deck",
+              "keel",
+              "stem",
+              "sternpost",
+              "bulkhead_01",
+              "bulkhead_02",
+              "bulkhead_03",
+              "bulkhead_04",
+              "bulkhead_05",
+              "bulkhead_06",
+              "bulkhead_07",
+              "bulkhead_08",
+              "bulkhead_09",
+              "bulkhead_10",
+              "bulkhead_11",
+              "bulkhead_12",
+              "plank_seam",
+              "nail_set",
+              "caulk_layer",
+              "treenail",
+              "iron_nail",
+              "caulking_seam",
+              "joint_tenon",
+              "joint_mortise"
+            ]
+          },
+          "assembled": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "exploded": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      }
     }
   }
 }

@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { buildPlaceholders } from './placeholder.js'
 import { CameraRig, CAMERAS } from './camera.js'
 import { Parts } from './parts.js'
@@ -23,6 +24,13 @@ async function loadPartsSpec(base, timeoutMs = 8000) {
   } finally {
     clearTimeout(timer)
   }
+}
+
+// parts.json 允许两种形态：数组（旧）或 { unit, parts }（推荐）。
+function normalizeSpec(raw) {
+  if (Array.isArray(raw)) return { unit: null, parts: raw }
+  if (raw && Array.isArray(raw.parts)) return { unit: raw.unit ?? null, parts: raw.parts }
+  return null
 }
 
 // 真模型材质统一到项目四色，避免 GLB 自带贴图带来的体积与风格不一致。
@@ -59,35 +67,93 @@ function sharedMaterial(color) {
 // - 只替换子物体，保留 Group 的 position/rotation（装配位、爆炸位都在 Group 上）
 // - 子物体自身位移归零，单位按包围盒判断（>100 视为毫米，整树 0.001）
 // 返回成功接上的零件数。
-function bindRealMeshes(gltf, nodes) {
+function bindRealMeshes(gltf, nodes, { unit } = {}) {
+  // 这些零件被交互模块持有网格引用（caulk 的上下板、flood 的隔舱材质、joint 的爆炸件）。
+  // 直接替换会让 refs 指向已移除的网格，表现为「点了没反应」。P2 阶段先保留占位。
+  const KEEP_PLACEHOLDER = new Set([
+    'plank_seam', 'nail_set', 'caulk_layer',
+    'joint_tenon', 'joint_mortise',
+  ])
   const root = gltf?.scene ?? gltf?.scenes?.[0]
   if (!root) return 0
 
   root.updateMatrixWorld(true)
+
+  const UNIT_SCALE = { m: 1, cm: 0.01, mm: 0.001 }
   const size = new THREE.Box3().setFromObject(root).getSize(new THREE.Vector3())
   const maxDim = Math.max(size.x, size.y, size.z)
-  const unitScale = maxDim > 100 ? 0.001 : 1
+
+  let unitScale
+  if (unit && UNIT_SCALE[unit] !== undefined) {
+    unitScale = UNIT_SCALE[unit]
+  } else {
+    // 没声明单位时才靠包围盒推断；推断结果还要过 20–40 m 的船体校验
+    unitScale = maxDim > 100 ? 0.001 : 1
+    console.warn('[stage] parts.json 未声明 unit，按包围盒推断；建议写 "unit": "m"')
+  }
+
+  // 建模尺度：100 单位 ≈ 30 m 实船（1 单位 ≈ 0.3 m）。上限放到 150，正常模型不刷警告；
+  // 真正的单位写错（mm/cm 当 m）会落到 0.1 或 1 的量级，仍然会被这条抓到。
+  const scaledMax = maxDim * unitScale
+  if (scaledMax < 20 || scaledMax > 150) {
+    console.warn(`[stage] 模型最大边 ${scaledMax.toFixed(1)} m，超出船体 20–150 m 预期，检查 parts.json 的 unit 或模型比例`)
+  }
+
+  const worldPos = new THREE.Vector3()
+  const worldQuat = new THREE.Quaternion()
+  const worldScale = new THREE.Vector3()
+  const parentInv = new THREE.Matrix4()
+  const worldMat = new THREE.Matrix4()
+  const localMat = new THREE.Matrix4()
 
   let bound = 0
   nodes.forEach((group, name) => {
+    if (KEEP_PLACEHOLDER.has(name)) return
     const source = root.getObjectByName(name)
     if (!source) return
 
+    // 父级可能是带变换的空节点或骨架：先取世界变换，再换算成挂载后的局部变换
+    source.getWorldPosition(worldPos)
+    source.getWorldQuaternion(worldQuat)
+    source.getWorldScale(worldScale)
+
     const clone = source.clone(true)
     clone.position.set(0, 0, 0)
-    clone.rotation.set(0, 0, 0)
-    clone.scale.copy(source.scale).multiplyScalar(unitScale)
+    clone.quaternion.identity()
+    clone.scale.set(1, 1, 1)
 
-    const material = sharedMaterial(paletteFor(name))
+    // 优先用 GLB 自带材质（含风化木纹贴图）；只有缺材质时才回退到项目四色。
+    const fallback = sharedMaterial(paletteFor(name))
+    // 船体是开口放样：单面渲染会只剩朝向相机的一半。外壳与甲板强制双面。
+    const twoSided = name === 'hull_shell' || name === 'ship_deck'
+    const sidedCache = new Map()
     clone.traverse((obj) => {
       if (!obj.isMesh) return
-      obj.material = material
+      const base = obj.material || fallback
+      if (twoSided) {
+        let sided = sidedCache.get(base)
+        if (!sided) {
+          sided = base.clone()
+          sided.side = THREE.DoubleSide
+          sidedCache.set(base, sided)
+        }
+        obj.material = sided
+      } else {
+        obj.material = base
+      }
       obj.castShadow = false
       obj.receiveShadow = false
     })
 
     group.clear()
     group.add(clone)
+    group.updateWorldMatrix(true, false)
+
+    worldMat.compose(worldPos, worldQuat, worldScale.clone().multiplyScalar(unitScale))
+    parentInv.copy(group.matrixWorld).invert()
+    localMat.multiplyMatrices(parentInv, worldMat)
+    localMat.decompose(clone.position, clone.quaternion, clone.scale)
+
     bound += 1
   })
 
@@ -100,27 +166,37 @@ function smoothstep(t) {
 }
 
 function clampedDPR() {
-  return Math.min(window.devicePixelRatio || 1, 1.6)
+  return Math.min(window.devicePixelRatio || 1, 2)
 }
 
 export async function createStage({ canvas, beats, reducedMotion, base, onModelFail }) {
   const renderer = new THREE.WebGLRenderer({
     canvas,
     alpha: true,
-    antialias: (window.devicePixelRatio || 1) < 1.5,
+    antialias: true,
     powerPreference: 'high-performance',
   })
   renderer.setPixelRatio(clampedDPR())
   renderer.setClearColor(0x000000, 0)
+  // 纯色/贴图材质都需要色调映射与 sRGB 输出，否则发灰发脏。
+  renderer.toneMapping = THREE.ACESFilmicToneMapping
+  renderer.toneMappingExposure = 0.95
+  renderer.outputColorSpace = THREE.SRGBColorSpace
 
   const scene = new THREE.Scene()
   scene.fog = new THREE.Fog(0x3a2a20, 220, 560)
 
+  // 环境探针：给木料一点漫反射层次，纯靠平行光会显得平。
+  const pmrem = new THREE.PMREMGenerator(renderer)
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
+  scene.environmentIntensity = 0.4
+  pmrem.dispose()
+
   const camera = new THREE.PerspectiveCamera(CAMERAS.wide.fov, 1, 0.1, 1000)
   const rig = new CameraRig(camera, reducedMotion)
 
-  scene.add(new THREE.HemisphereLight(0xe9e3d6, 0x3a2a1d, 1.7))
-  const sun = new THREE.DirectionalLight(0xfff2dd, 2.4)
+  scene.add(new THREE.HemisphereLight(0xe9e3d6, 0x3a2a1d, 1.05))
+  const sun = new THREE.DirectionalLight(0xfff2dd, 1.5)
   sun.position.set(60, 80, 40)
   scene.add(sun)
 
@@ -131,9 +207,9 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   // parts.json（可选）：应用装配/爆炸位
   // 实船 12 道隔舱板时，占位几何只有 3 道；这里按 parts.json 补建缺失的 Group，
   // 否则 GLB 里多出来的节点没有容器可挂。
-  const spec = await loadPartsSpec(base)
-  if (Array.isArray(spec)) {
-    spec.forEach((p) => {
+  const spec = normalizeSpec(await loadPartsSpec(base))
+  if (spec) {
+    spec.parts.forEach((p) => {
       let g = nodes.get(p.name)
       if (!g) {
         g = new THREE.Group()
@@ -158,10 +234,24 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
     .then((gltf) => {
       if (!gltf || realModel) return
       realModel = gltf
-      const bound = bindRealMeshes(gltf, nodes)
-      if (bound > 0) console.info(`[stage] GLB 已接入 ${bound} 个零件`)
+      const bound = bindRealMeshes(gltf, nodes, { unit: spec?.unit })
+      if (bound > 0) {
+        // 隔舱被替换后，flood 里的旧材质引用失效；把 12 道重新登记给它
+        const list = []
+        for (let i = 1; i <= 12; i += 1) {
+          const g = nodes.get(`bulkhead_${String(i).padStart(2, '0')}`)
+          if (g) list.push(g)
+        }
+        flood.rebindBulkheads(list)
+        console.info(`[stage] GLB 已接入 ${bound} 个零件，隔舱 ${list.length} 道`)
+      }
     })
     .catch((err) => console.warn('[stage] 接入 GLB 失败：', err))
+
+  // DEV 调试钩子：浏览器里可直接读场景状态
+  if (import.meta.env.DEV) {
+    window.__bf = { scene, camera, renderer }
+  }
 
   const parts = new Parts(nodes)
   const flood = createFlood({ ship: shipGroup, compWater: water.comp, fullWater: water.full, bulkheads, water }, reducedMotion)
@@ -224,6 +314,19 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       nodeSetFor(i).forEach((n) => visibleSet.add(n))
       if (blend > 0 && next) next.stage.nodes.forEach((n) => visibleSet.add(n))
       parts.setVisible(visibleSet)
+
+      // 剖舱与漏水两屏需要看进船体：有真模型时把外壳调透明，其余屏恢复不透明
+      const seeThrough = beat.id === 'b4' || beat.id === 'b5'
+      for (const nm of ['hull_shell', 'ship_deck']) {
+        const node = nodes.get(nm)
+        if (!node) continue
+        node.traverse((obj) => {
+          if (!obj.isMesh || !obj.material) return
+          obj.material.transparent = seeThrough
+          obj.material.opacity = seeThrough ? 0.55 : 1
+          obj.material.depthWrite = !seeThrough
+        })
+      }
 
       // 相机
       rig.update(beat.stage.camera, next ? next.stage.camera : null, blend, lt, dt)
