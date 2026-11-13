@@ -294,6 +294,8 @@ export function createWater({ floorY = -11.6 } = {}) {
     for (let i = ptr; i < bodyPos.length; i += 1) bodyPos[i] = 0
     bodyGeo.attributes.position.needsUpdate = true
     bodyGeo.setDrawRange(0, ptr / 3)
+    // 只有 position 时法线会被当成默认值，竖向水面的受光就不对；补算一次
+    if (ptr > 0) bodyGeo.computeVertexNormals()
     body.visible = any
   }
 
