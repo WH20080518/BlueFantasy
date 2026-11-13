@@ -293,25 +293,6 @@ function buildShipStructure() {
   return { keelG, stemG, sternpostG, bulkheads }
 }
 
-function buildWater() {
-  const mat = () =>
-    new THREE.MeshStandardMaterial({
-      color: PALETTE.water,
-      transparent: true,
-      opacity: 0.5,
-      roughness: 0.3,
-      depthWrite: false,
-    })
-  // bulkhead_01 与 bulkhead_02 之间的舱（x -25..0）
-  const comp = new THREE.Mesh(new THREE.BoxGeometry(24, 0.5, 24), mat())
-  comp.position.set(-12.5, HULL.bottom + 0.5, 0)
-  comp.visible = false
-  const full = new THREE.Mesh(new THREE.BoxGeometry(96, 0.5, 24), mat())
-  full.position.set(0, HULL.bottom + 0.5, 0)
-  full.visible = false
-  return { comp, full, hiddenY: HULL.bottom + 0.5, compLevel: HULL.bottom + 18 * 0.8, fullLevel: HULL.bottom + 18 * 0.6 }
-}
-
 function buildShadow() {
   const canvas = document.createElement('canvas')
   canvas.width = 256
@@ -338,12 +319,11 @@ export function buildPlaceholders() {
   const { keelG, stemG, sternpostG, bulkheads } = buildShipStructure()
   const joint = buildJoint()
   const seam = buildSeam()
-  const water = buildWater()
   const shadow = buildShadow()
 
   const shipGroup = new THREE.Group()
   shipGroup.name = 'ship'
-  ;[hull, deck, keelG, stemG, sternpostG, ...bulkheads, water.comp, water.full].forEach((g) => shipGroup.add(g))
+  ;[hull, deck, keelG, stemG, sternpostG, ...bulkheads].forEach((g) => shipGroup.add(g))
 
   const detailGroup = new THREE.Group()
   detailGroup.name = 'details'
@@ -364,5 +344,5 @@ export function buildPlaceholders() {
     seam.caulkLayer,
   ].forEach((g) => nodes.set(g.name, g))
 
-  return { shipGroup, detailGroup, shadow, nodes, joint, seam, water, bulkheads }
+  return { shipGroup, detailGroup, shadow, nodes, joint, seam, bulkheads }
 }

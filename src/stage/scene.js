@@ -6,6 +6,7 @@ import { Parts } from './parts.js'
 import { createFlood } from '../interactions/flood.js'
 import { createCaulk } from '../interactions/caulk.js'
 import { loadShip } from './loader.js'
+import { createWater } from './water.js'
 
 // three 场景：渲染循环、resize（DPR 上限 2）、半球光 + 方向光（无阴影贴图）。
 
@@ -210,7 +211,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   scene.add(cutFill)
 
   const built = buildPlaceholders()
-  const { shipGroup, detailGroup, shadow, nodes, joint, seam, water, bulkheads } = built
+  const { shipGroup, detailGroup, shadow, nodes, joint, seam, bulkheads } = built
   scene.add(shipGroup, detailGroup, shadow)
 
   // parts.json（可选）：应用装配/爆炸位
@@ -252,6 +253,22 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
           if (g) list.push(g)
         }
         flood.rebindBulkheads(list)
+        // 用真模型的隔舱位置决定分舱边界，水面格数才跟船体对得上
+        const xs = []
+        const box = new THREE.Box3()
+        const center = new THREE.Vector3()
+        list.forEach((g) => {
+          box.setFromObject(g)
+          if (box.isEmpty()) return
+          box.getCenter(center)
+          xs.push(center.x)
+        })
+        if (xs.length >= 2) {
+          xs.sort((a, b) => a - b)
+          const edgeList = [-47, ...xs, 47]
+          flood.setLayout(edgeList)
+          console.info(`[stage] 水面分舱 ${edgeList.length - 1} 格`)
+        }
         console.info(`[stage] GLB 已接入 ${bound} 个零件，隔舱 ${list.length} 道`)
         // 深链直接落在 b4/b5 时，模型可能晚于剖切开关绑定：
         // 旧占位网格的克隆材质已经随 group.clear() 脱离场景，新网格却还没有裁剪面，
@@ -268,11 +285,17 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       scene, camera, renderer, nodes, setCutaway, reapplyCutaway,
       get cutOn() { return cutOn },
       get cutSwaps() { return cutSwaps },
+      // 下面这些在钩子之后才创建，统一用 getter
+      get flood() { return flood },
+      get water() { return water },
     }
   }
 
   const parts = new Parts(nodes)
-  const flood = createFlood({ ship: shipGroup, compWater: water.comp, fullWater: water.full, bulkheads, water }, reducedMotion)
+  // 水面：一整片按舱分格的高度场，水位由 flood 的每个舱控制
+  const water = createWater({ floorY: -11.6 })
+  shipGroup.add(water.mesh)
+  const flood = createFlood({ ship: shipGroup, water, bulkheads, floorY: -11.6, topY: 5.2 })
   const caulk = createCaulk(
     { upper: seam.refs.upper, lower: seam.refs.lower, marker: seam.refs.marker, caulk: seam.refs.caulk, nails: seam.nails, openY: seam.refs.openY, closedY: seam.refs.closedY },
     reducedMotion,
@@ -324,9 +347,12 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
     if (on === cutOn) return
     cutOn = on
     CUT_NODES.forEach((nm) => nodes.get(nm)?.traverse(swapMesh))
-    // 水面板横贯整个船宽，不一起裁就会从切开的半边溢出去
-    swapMesh(water.comp)
-    swapMesh(water.full)
+    // 水面横贯整个船宽，不一起裁就会从切开的半边溢出去。
+    // 它的材质是独享的，而且顶点位移挂在 onBeforeCompile 上——clone() 不会复制
+    // onBeforeCompile，也会把 userData 里的 uniform 引用做深拷贝，所以这里不克隆，
+    // 直接挂裁剪面。
+    water.material.clippingPlanes = on ? [cutPlane] : null
+    water.material.needsUpdate = true
     cutFill.visible = on
     // 隔舱材质换过实例，flood 里缓存的引用要重新登记，否则淡出作用在旧材质上
     flood.rebindBulkheads(bulkheadGroups())
