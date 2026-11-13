@@ -11,7 +11,8 @@ export const CAMERAS = {
   joint: { position: [26, 14, 34], target: [0, 0, 0], fov: 40 },
   seam: { position: [2, 6, 46], target: [0, -1, 0], fov: 40 },
   cutaway: { position: [80, 70, 110], target: [0, 0, 0], fov: 44 },
-  flood: { position: [20, 24, 148], target: [0, -2, 0], fov: 44 },
+  // 漏水屏：从船艏斜上俯看，破口舱落在画面右半，避开左下角文案
+  flood: { position: [52, 40, 96], target: [12, -5, 0], fov: 40 },
   terms: { position: [96, 30, 96], target: [0, 0, 0], fov: 44 },
   away: { position: [150, 64, 170], target: [0, 2, 0], fov: 50 },
 }

@@ -181,6 +181,8 @@ function scheduleUrlWrite() {
 
 function onBeat(i) {
   currentBeat = i
+  // 按屏切版式：漏水那一屏的水在画面右半，文案要收窄让开
+  if (beats[i]) document.body.dataset.beat = beats[i].id
   clearLabel()
   overlay.renderBeat(i)
   if (stage3d) stage3d.enterBeat(i)

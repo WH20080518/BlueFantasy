@@ -237,6 +237,21 @@ body {
   color: var(--mist);
 }
 
+/* 漏水屏：水面在画面中右，文案收窄让开，别压住进水的舱 */
+body[data-beat='b5'] .copy {
+  max-width: min(21rem, calc(100% - 2rem));
+  padding: 0.85rem 1rem 0.95rem;
+}
+
+body[data-beat='b5'] .copy-title {
+  font-size: clamp(1.3rem, 2.4vw, 1.7rem);
+}
+
+body[data-beat='b5'] .copy-body p {
+  font-size: 0.94rem;
+  line-height: 1.66;
+}
+
 /* ---------- 补缝 ---------- */
 
 .caulk {

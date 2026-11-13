@@ -347,12 +347,12 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
     if (on === cutOn) return
     cutOn = on
     CUT_NODES.forEach((nm) => nodes.get(nm)?.traverse(swapMesh))
-    // 水面横贯整个船宽，不一起裁就会从切开的半边溢出去。
-    // 它的材质是独享的，而且顶点位移挂在 onBeforeCompile 上——clone() 不会复制
-    // onBeforeCompile，也会把 userData 里的 uniform 引用做深拷贝，所以这里不克隆，
-    // 直接挂裁剪面。
-    water.material.clippingPlanes = on ? [cutPlane] : null
-    water.material.needsUpdate = true
+    // 水面/水体横贯整个船宽，不一起裁就会从切开的半边溢出去。
+    // 这两份材质是水独占的，直接挂裁剪面即可（它们没有和别的零件共享实例）
+    water.materials.forEach((m) => {
+      m.clippingPlanes = on ? [cutPlane] : null
+      m.needsUpdate = true
+    })
     cutFill.visible = on
     // 隔舱材质换过实例，flood 里缓存的引用要重新登记，否则淡出作用在旧材质上
     flood.rebindBulkheads(bulkheadGroups())
