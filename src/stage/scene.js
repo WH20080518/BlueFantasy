@@ -253,13 +253,22 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
         }
         flood.rebindBulkheads(list)
         console.info(`[stage] GLB 已接入 ${bound} 个零件，隔舱 ${list.length} 道`)
+        // 深链直接落在 b4/b5 时，模型可能晚于剖切开关绑定：
+        // 旧占位网格的克隆材质已经随 group.clear() 脱离场景，新网格却还没有裁剪面，
+        // 而 setCutaway 的 guard 会把这个状态一直挡住，所以这里强制重挂一次。
+        if (cutOn) reapplyCutaway()
       }
     })
     .catch((err) => console.warn('[stage] 接入 GLB 失败：', err))
 
   // DEV 调试钩子：浏览器里可直接读场景状态
   if (import.meta.env.DEV) {
-    window.__bf = { scene, camera, renderer, nodes, get cutOn() { return cutOn }, setCutaway }
+    // cutSwaps / cutOn 在下面才初始化，这里必须用 getter，直接取值会撞 TDZ
+    window.__bf = {
+      scene, camera, renderer, nodes, setCutaway, reapplyCutaway,
+      get cutOn() { return cutOn },
+      get cutSwaps() { return cutSwaps },
+    }
   }
 
   const parts = new Parts(nodes)
@@ -321,6 +330,24 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
     cutFill.visible = on
     // 隔舱材质换过实例，flood 里缓存的引用要重新登记，否则淡出作用在旧材质上
     flood.rebindBulkheads(bulkheadGroups())
+  }
+
+  // 已脱离场景的占位网格：还原无从谈起，直接 dispose 掉挂在它们上面的克隆材质
+  function pruneCutSwaps() {
+    cutSwaps.forEach((orig, mesh) => {
+      if (mesh.parent) return
+      const clone = mesh.material
+      const list = Array.isArray(clone) ? clone : [clone]
+      list.forEach((m) => m.dispose && m.dispose())
+      cutSwaps.delete(mesh)
+      void orig
+    })
+  }
+
+  function reapplyCutaway() {
+    pruneCutSwaps()
+    cutOn = false // 绕过 guard，让下一行对当前这批网格重新克隆并挂裁剪面
+    setCutaway(true)
   }
 
   let beatIndex = 0
