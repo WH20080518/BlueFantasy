@@ -7,13 +7,32 @@ export function initFallback({ stageEl, img, base }) {
   document.body.classList.add('is-fallback')
   img.hidden = false
 
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
+
   return {
     setBeat(beat, lang) {
       const src = `${base}${beat.fallback}`
-      if (!img.getAttribute('src') || !img.src.includes(beat.fallback)) {
-        img.src = src
-      }
       img.alt = beat.stageLabel[lang]
+
+      // 同一张不重复切换，避免抖动时反复闪烁
+      if (img.getAttribute('src') === src) return
+
+      if (reduced.matches) {
+        img.src = src
+        return
+      }
+
+      // 淡出 → 换源 → 解码完成再淡入（200ms 过渡，CSS 里定义）
+      img.style.opacity = '0'
+      img.src = src
+      const show = () => {
+        img.style.opacity = '1'
+      }
+      if (typeof img.decode === 'function') {
+        img.decode().then(() => requestAnimationFrame(show)).catch(show)
+      } else {
+        img.addEventListener('load', show, { once: true })
+      }
     },
   }
 }

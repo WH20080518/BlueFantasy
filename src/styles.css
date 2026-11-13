@@ -142,6 +142,8 @@ body {
 .stage-fallback {
   position: absolute;
   inset: 0;
+  opacity: 1;
+  transition: opacity 200ms ease-out;
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -623,7 +625,8 @@ body {
 /* ---------- 减少动效 ---------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .copy {
+  .copy,
+  .stage-fallback {
     transition: none;
   }
 
@@ -635,14 +638,8 @@ body {
   }
 }
 
-/* 第 7 屏加了「三问」后内容变高：窄屏收紧间距，面板内部滚动兜底 */
+/* 窄屏收紧间距；面板高度由上面的 46svh 控制，不要在这里再抬高，否则会吞掉页面滚动 */
 @media (max-width: 640px) {
-  .copy {
-    max-height: calc(100svh - 1.5rem);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-  }
-
   .copy-body p {
     line-height: 1.72;
   }
