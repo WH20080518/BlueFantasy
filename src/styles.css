@@ -142,6 +142,8 @@ body {
 .stage-fallback {
   position: absolute;
   inset: 0;
+  opacity: 1;
+  transition: opacity 200ms ease-out;
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -624,10 +626,22 @@ body {
   }
 }
 
+/* 平板档（641–1024）：面板不再按内容无限撑高，内部滚动 */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .copy {
+    max-height: 62vh;
+    max-height: 62svh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 /* ---------- 减少动效 ---------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .copy {
+  .copy,
+  .stage-fallback {
     transition: none;
   }
 
@@ -639,14 +653,8 @@ body {
   }
 }
 
-/* 第 7 屏加了「三问」后内容变高：窄屏收紧间距，面板内部滚动兜底 */
+/* 窄屏收紧间距；面板高度由上面的 46svh 控制，不要在这里再抬高，否则会吞掉页面滚动 */
 @media (max-width: 640px) {
-  .copy {
-    max-height: calc(100svh - 1.5rem);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-  }
-
   .copy-body p {
     line-height: 1.72;
   }
@@ -935,5 +943,52 @@ body.is-fallback .seal {
     font-size: 0.95rem;
     border-width: 2px;
     opacity: 0.62;
+  }
+}
+
+/* ---------- 术语墙折叠（窄屏） ---------- */
+.terms {
+  position: relative;
+}
+
+.terms-more {
+  display: none;
+  position: absolute;
+  top: -0.15rem;
+  right: 0;
+  padding: 0.2rem 0.55rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--tung, #c08a4a);
+  background: transparent;
+  border: 1px solid rgba(192, 138, 74, 0.4);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.terms-more:hover {
+  background: rgba(192, 138, 74, 0.1);
+}
+
+.terms-more:focus-visible {
+  outline: 2px solid var(--tung, #c08a4a);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .terms-list li:nth-child(n + 4) {
+    display: none;
+  }
+
+  .terms-list.is-open li:nth-child(n + 4) {
+    display: list-item;
+  }
+
+  .terms-more {
+    display: inline-block;
+  }
+
+  .terms-title {
+    padding-right: 5.2rem;
   }
 }
