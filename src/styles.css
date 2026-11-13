@@ -626,6 +626,17 @@ body {
   }
 }
 
+/* 平板档（641–1024）：面板不再按内容无限撑高，内部滚动 */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .copy {
+    max-height: 62vh;
+    max-height: 62svh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 /* ---------- 减少动效 ---------- */
 
 @media (prefers-reduced-motion: reduce) {
