@@ -100,6 +100,7 @@ let lastInteractionBeat = -1
     el.replay.textContent = t(ui.replay)
     el.credits.textContent = t(ui.credits)
     el.termsTitle.textContent = t(ui.termsTitle)
+    if (beatIndex >= 0 && beats[beatIndex].interaction === 'terms') renderTerms()
 
     el.caulkSteps.innerHTML = ''
     ui.caulk.steps.forEach((s, i) => {
@@ -146,6 +147,22 @@ let lastInteractionBeat = -1
       }
       el.termsList.appendChild(li)
     })
+
+    // 窄屏折叠：默认只露前 4 条，其余点「展开全部」（桌面 CSS 里按钮不显示）
+    const prev = el.termsTitle.nextElementSibling
+    if (prev && prev.classList.contains('terms-more')) prev.remove()
+    el.termsList.classList.remove('is-open')
+    if (el.termsList.children.length > 3) {
+      const more = document.createElement('button')
+      more.type = 'button'
+      more.className = 'terms-more'
+      more.textContent = t({ zh: '展开全部', en: 'Show all terms' })
+      more.addEventListener('click', () => {
+        el.termsList.classList.add('is-open')
+        more.remove()
+      })
+      el.termsTitle.after(more)
+    }
   }
 
   function renderCaulkUI() {
