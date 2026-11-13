@@ -1,21 +1,32 @@
 import * as THREE from 'three'
+import { createFluidSolver } from './fluid.js'
 
-// 水面 + 水体：两张网格配合，俯看是水面，侧看是水体。
-// - surface：按舱水位的高度场（CPU 写顶点），波纹靠法线贴图滚动
-// - body：沿船壳内壁从船底立到水位的两组竖面，侧视时给出「水下」的厚度
-// 水位谁都能读、谁都能测，不依赖自定义着色器。
+// 水面 + 水体。
 //
-// 坐标沿用占位船体：船长 100（X）、船宽 28（Z）、船底 -12、舷顶 6。
+// 分工：
+// - 水位、连通、体积守恒：flood.js 的 CPU 模拟（可测、可断言）
+// - 这里的几何：按舱水位写顶点，给出水面的形状和水体的轮廓
+// - 表面的细节：GPU 流体（fluid.js，Stable Fluids）推动的染料/速度场，
+//   水面着色器拿它扰动法线和生成泡沫；没有半浮点支持时自动退回纯程序化波纹
+//
+// 之前那版「像玻璃」的根源是：只有标准材质的 envMap 反射、没有吸收、没有泡沫，
+// 掠射角整片泛白。现在改成手写着色器：菲涅尔反射 + 体积吸收 + 泡沫遮罩。
 
 const MAX_COMP = 16
-const SEG_X = 140
-const SEG_Z = 20
+const NX = 12 // 每舱沿 x 的网格段数
+const NZ = 8 // 沿 z 的段数
+const INSET = 0.62 // 距舱壁板的间隙（板半厚 0.6，再留 0.02 防 z-fighting）
 const X_MIN = -40
 const X_MAX = 40
 const Z_HALF = 13
-const BODY_SAMPLES = 72
+const MAX_Q = MAX_COMP * NX * NZ
 
-// 可平铺的水波法线：多层正弦叠加生成一次，之后靠 offset 滚动
+const CLIP_PARS_VERT = '#include <clipping_planes_pars_vertex>'
+const CLIP_VERT = '#include <clipping_planes_vertex>'
+const CLIP_PARS_FRAG = '#include <clipping_planes_pars_fragment>'
+const CLIP_FRAG = '#include <clipping_planes_fragment>'
+
+// 可平铺的水波法线（程序生成，避开外部素材授权问题）
 function makeRippleNormal(size = 256) {
   const data = new Uint8Array(size * size * 4)
   const height = new Float32Array(size * size)
@@ -51,128 +62,219 @@ function makeRippleNormal(size = 256) {
   const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat)
   tex.wrapS = THREE.RepeatWrapping
   tex.wrapT = THREE.RepeatWrapping
-  tex.repeat.set(8, 4)
   tex.needsUpdate = true
   return tex
 }
 
-// 船体半宽：占位船体轮廓的近似（艏艉收尖），给水面和水体收边
+// 船体半宽：水面只铺到平行中体，再往艏艉船壳收得太快
 function halfWidthAt(x) {
-  // 水面只铺到 ±40（平行中体），再往艏艉船体收得太快，硬铺会穿出船壳
   const t = Math.min(1, Math.abs(x) / 56)
   return 14 * Math.pow(Math.max(0, 1 - Math.pow(t, 3)), 0.5)
 }
 
-// 船底纵剖高度：中段近乎水平，艏艉抬起。水体下缘要贴着它，不然会从船底穿出去
+// 船底纵剖：中段近水平，艏艉抬起
 function bottomAt(x, floorY) {
   const t = Math.min(1, Math.max(0, (Math.abs(x) - 20) / 26))
   return floorY + 6.2 * t * t
 }
 
-// 船体宽度随高度收窄：舷顶最宽，船底收到 62%
+// 船体宽度随高度收窄
 function widthScaleAt(y) {
   const t = Math.min(1, Math.max(0, (y + 12) / 18))
   return 0.62 + 0.38 * Math.pow(Math.sin((t * Math.PI) / 2), 0.85)
 }
 
-export function createWater({ floorY = -11.6 } = {}) {
-  const normalMap = makeRippleNormal()
+const SURFACE_VERT = /* glsl */ `
+precision highp float;
+attribute vec3 color;
+varying vec3 vWorldPos;
+varying vec3 vNormalW;
+varying vec2 vUv2;
+varying float vDepthC;
+${CLIP_PARS_VERT}
+void main() {
+  vec4 wp = modelMatrix * vec4(position, 1.0);
+  vWorldPos = wp.xyz;
+  vNormalW = normalize(mat3(modelMatrix) * normal);
+  vUv2 = uv;
+  vDepthC = color.r;
+  // 名字必须是 mvPosition：three 的 clipping_planes_vertex 里会读它
+  vec4 mvPosition = viewMatrix * wp;
+  gl_Position = projectionMatrix * mvPosition;
+  ${CLIP_VERT}
+}
+`
+
+const SURFACE_FRAG = /* glsl */ `
+precision highp float;
+uniform sampler2D uRipple;
+uniform sampler2D uVelocity;
+uniform sampler2D uDye;
+uniform float uTime;
+uniform float uFluid;
+uniform float uOpacity;
+uniform vec3 uDeep;
+uniform vec3 uShallow;
+uniform vec3 uFoam;
+uniform vec3 uSunDir;
+varying vec3 vWorldPos;
+varying vec3 vNormalW;
+varying vec2 vUv2;
+varying float vDepthC;
+${CLIP_PARS_FRAG}
+
+void main() {
+  ${CLIP_FRAG}
+
+  vec3 V = normalize(cameraPosition - vWorldPos);
+
+  // 两层法线：一层程序化波纹，一层由流体速度场拉扯
+  vec3 rA = texture2D(uRipple, vUv2 * 6.0 + vec2(uTime * 0.017, uTime * 0.011)).xyz * 2.0 - 1.0;
+  vec3 rB = texture2D(uRipple, vUv2 * 13.0 + vec2(-uTime * 0.009, uTime * 0.014)).xyz * 2.0 - 1.0;
+  vec2 vel = (texture2D(uVelocity, vUv2).xy) * uFluid;
+
+  vec3 N = normalize(vec3(
+    rA.x * 0.55 + rB.x * 0.30 + vel.x * 0.0065,
+    1.0,
+    rA.y * 0.55 + rB.y * 0.30 + vel.y * 0.0065
+  ));
+
+  float fres = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 3.0);
+
+  // 天空反射：用竖直渐变近似，比 envMap 稳，也不会把整个水面照成白片
+  vec3 sky = mix(vec3(0.055, 0.085, 0.10), vec3(0.30, 0.37, 0.40), clamp(N.y * 0.5 + 0.5, 0.0, 1.0));
+
+  // 体积吸收：浅处透青，深处压到墨绿
+  vec3 body = mix(uShallow, uDeep, clamp(vDepthC, 0.0, 1.0));
+
+  vec3 col = mix(body, sky, mix(0.04, 0.80, fres));
+
+  // 太阳高光
+  vec3 L = normalize(uSunDir);
+  float spec = pow(max(dot(reflect(-V, N), L), 0.0), 80.0);
+  col += vec3(1.0, 0.95, 0.86) * spec * 0.9;
+
+  // 泡沫：染料浓度 + 波纹峰值，靠近浅滩（vDepthC≈0）更容易起泡
+  float dye = texture2D(uDye, vUv2).r * uFluid;
+  float peak = clamp(rA.z * 0.5 + 0.5, 0.0, 1.0);
+  float shore = smoothstep(0.22, 0.0, vDepthC);
+  float foam = smoothstep(0.30, 0.85, dye * 1.6 + peak * 0.25 + shore * 0.35) * (0.35 + shore * 0.65);
+  col = mix(col, uFoam, clamp(foam, 0.0, 0.92));
+
+  float alpha = mix(uOpacity, 0.97, fres);
+  alpha = max(alpha, foam * 0.85);
+
+  gl_FragColor = vec4(col, alpha);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}
+`
+
+const BODY_VERT = /* glsl */ `
+precision highp float;
+attribute vec3 color;
+varying vec3 vWorldPos;
+varying float vDepthC;
+varying float vTop;
+${CLIP_PARS_VERT}
+void main() {
+  vec4 wp = modelMatrix * vec4(position, 1.0);
+  vWorldPos = wp.xyz;
+  vDepthC = color.r;
+  vTop = color.g;
+  vec4 mvPosition = viewMatrix * wp;
+  gl_Position = projectionMatrix * mvPosition;
+  ${CLIP_VERT}
+}
+`
+
+const BODY_FRAG = /* glsl */ `
+precision highp float;
+uniform vec3 uDeep;
+uniform vec3 uShallow;
+uniform float uOpacity;
+varying vec3 vWorldPos;
+varying float vDepthC;
+varying float vTop;
+${CLIP_PARS_FRAG}
+void main() {
+  ${CLIP_FRAG}
+  // 水下体积：越深越暗越浑，靠近水线处略亮（散射），整体偏哑光
+  vec3 col = mix(uShallow * 0.70, uDeep * 0.42, clamp(vDepthC, 0.0, 1.0));
+  col += uShallow * 0.18 * pow(vTop, 5.0);
+  float alpha = mix(0.44, 0.88, clamp(vDepthC, 0.0, 1.0));
+  gl_FragColor = vec4(col, alpha * uOpacity);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}
+`
+
+export function createWater({ floorY = -11.6, renderer = null } = {}) {
+  const ripple = makeRippleNormal()
+  ripple.repeat.set(1, 1)
+
+  const fluid = renderer ? createFluidSolver(renderer) : null
+  const fluidOn = fluid ? 1 : 0
 
   /* ---------- 水面 ---------- */
-  const geo = new THREE.PlaneGeometry(X_MAX - X_MIN, Z_HALF * 2, SEG_X, SEG_Z)
-  geo.rotateX(-Math.PI / 2)
-  geo.translate((X_MIN + X_MAX) / 2, 0, 0)
+  // 每个舱单独一块水平面片，舱与舱之间不共享顶点。
+  // 之前用一整张 PlaneGeometry：两侧水位差 12 个单位时，
+  // 相邻顶点之间必然拉出一堵近竖直的「水幕」，无论怎么调过渡带都会露出来。
+  const geo = new THREE.BufferGeometry()
+  const surfPos = new Float32Array(MAX_Q * 6 * 3)
+  const surfCol = new Float32Array(MAX_Q * 6 * 3)
+  const surfUv = new Float32Array(MAX_Q * 6 * 2)
+  geo.setAttribute('position', new THREE.BufferAttribute(surfPos, 3))
+  geo.setAttribute('color', new THREE.BufferAttribute(surfCol, 3))
+  geo.setAttribute('uv', new THREE.BufferAttribute(surfUv, 2))
 
-  const pos = geo.attributes.position
-  const baseX = new Float32Array(pos.count)
-  const baseZ = new Float32Array(pos.count)
-  geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(pos.count * 3), 3))
-  const colorAttr = geo.attributes.color
-  for (let i = 0; i < pos.count; i += 1) {
-    baseX[i] = pos.getX(i)
-    baseZ[i] = pos.getZ(i)
+  const surfaceUniforms = {
+    uRipple: { value: ripple },
+    uVelocity: { value: fluid ? fluid.velocityTexture : ripple },
+    uDye: { value: fluid ? fluid.dyeTexture : ripple },
+    uTime: { value: 0 },
+    uFluid: { value: fluidOn },
+    uOpacity: { value: 0.82 },
+    uDeep: { value: new THREE.Color(0x061b23) },
+    uShallow: { value: new THREE.Color(0x1c5a66) },
+    uFoam: { value: new THREE.Color(0xcfdedb) },
+    uSunDir: { value: new THREE.Vector3(0.45, 0.78, 0.44) },
   }
 
-  // 第二层法线：同一张图不同缩放/流向，两层叠加才不会看出平铺
-  const normalMap2 = normalMap.clone()
-  normalMap2.repeat.set(3.2, 1.6)
-  normalMap2.needsUpdate = true
-
-  const surfaceMat = new THREE.MeshStandardMaterial({
-    color: 0x2a6570,
-    roughness: 0.08,
-    metalness: 0.06,
+  const surfaceMat = new THREE.ShaderMaterial({
+    vertexShader: SURFACE_VERT,
+    fragmentShader: SURFACE_FRAG,
+    uniforms: surfaceUniforms,
     transparent: true,
-    opacity: 0.78,
     depthWrite: false,
-    normalMap,
-    normalScale: new THREE.Vector2(0.7, 0.7),
-    envMapIntensity: 1.35,
     side: THREE.DoubleSide,
-    vertexColors: true,
+    clipping: true,
   })
-
-  // 参考 stylized water 的常规做法：两层法线叠加 + 菲涅尔控透明度。
-  // 这两份材质是水独占的，不会被剖切逻辑克隆，注入是安全的。
-  surfaceMat.onBeforeCompile = (shader) => {
-    shader.uniforms.uNormalB = { value: normalMap2 }
-    shader.uniforms.uNormalBScale = { value: new THREE.Vector2(0.55, 0.55) }
-    shader.vertexShader = shader.vertexShader.replace(
-      '#include <common>',
-      '#include <common>\nvarying float vViewDist;',
-    )
-    shader.vertexShader = shader.vertexShader.replace(
-      '#include <project_vertex>',
-      '#include <project_vertex>\nvViewDist = -mvPosition.z;',
-    )
-    shader.fragmentShader = shader.fragmentShader
-      .replace(
-        '#include <common>',
-        `#include <common>
-        uniform sampler2D uNormalB;
-        uniform vec2 uNormalBScale;
-        varying float vViewDist;`,
-      )
-      .replace(
-        '#include <normal_fragment_maps>',
-        `#include <normal_fragment_maps>
-        {
-          // 第二层法线：低速反向流动，跟第一层叠加成不规则的水纹
-          vec3 mapB = texture2D(uNormalB, vNormalMapUv * vec2(1.7, 0.9) + vec2(0.13, -0.07)).xyz * 2.0 - 1.0;
-          mapB.xy *= uNormalBScale;
-          normal = normalize(normal + normalize(tbn * mapB) * 0.6);
-        }`,
-      )
-      .replace(
-        '#include <dithering_fragment>',
-        `#include <dithering_fragment>
-        {
-          // 菲涅尔：正视看进去透，掠射角接近镜面——这样侧视时才像水
-          vec3 V = normalize(vViewPosition);
-          float fres = pow(1.0 - clamp(dot(normal, V), 0.0, 1.0), 2.6);
-          gl_FragColor.a = mix(gl_FragColor.a, 0.93, fres);
-          gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.62, 0.76, 0.79), fres * 0.16);
-        }`,
-      )
-  }
 
   const surface = new THREE.Mesh(geo, surfaceMat)
   surface.name = 'water_surface'
   surface.renderOrder = 2
 
-  /* ---------- 水体（侧视时看得到水下厚度） ---------- */
+  /* ---------- 水体 ---------- */
   const bodyGeo = new THREE.BufferGeometry()
-  const bodyPos = new Float32Array(BODY_SAMPLES * 4 * 3 * 3) // 每段 2 个四边形 = 4 三角形
+  const bodyPos = new Float32Array(MAX_Q * 6 * 3)
+  const bodyCol = new Float32Array(MAX_Q * 6 * 3)
   bodyGeo.setAttribute('position', new THREE.BufferAttribute(bodyPos, 3))
-  const bodyMat = new THREE.MeshStandardMaterial({
-    color: 0x081f27,
-    roughness: 0.55,
-    metalness: 0.0,
+  bodyGeo.setAttribute('color', new THREE.BufferAttribute(bodyCol, 3))
+
+  const bodyUniforms = {
+    uDeep: { value: new THREE.Color(0x061b23) },
+    uShallow: { value: new THREE.Color(0x1c5a66) },
+    uOpacity: { value: 1 },
+  }
+  const bodyMat = new THREE.ShaderMaterial({
+    vertexShader: BODY_VERT,
+    fragmentShader: BODY_FRAG,
+    uniforms: bodyUniforms,
     transparent: true,
-    opacity: 0.5,
     depthWrite: false,
     side: THREE.DoubleSide,
-    envMapIntensity: 0.15,
+    clipping: true,
   })
   const body = new THREE.Mesh(bodyGeo, bodyMat)
   body.name = 'water_body'
@@ -189,6 +291,8 @@ export function createWater({ floorY = -11.6 } = {}) {
   let flows = [0]
   let blend = 0.01
   let comp = 1
+  let elapsed = 0
+  let splatClock = 0
 
   function compIndexAt(x) {
     let i = 0
@@ -196,7 +300,6 @@ export function createWater({ floorY = -11.6 } = {}) {
     return i
   }
 
-  // 舱壁处 blend 宽度内线性过渡；blend≈0 时就是硬台阶（正好被舱壁板挡住）
   function levelAt(x) {
     const i = compIndexAt(x)
     let lvl = levels[i]
@@ -213,90 +316,113 @@ export function createWater({ floorY = -11.6 } = {}) {
     return lvl
   }
 
-  function insetX(bx, i) {
-    const xIn = edges[i] + 1.0
-    const xOut = edges[i + 1] - 1.0
-    return xOut > xIn ? Math.min(Math.max(bx, xIn), xOut) : bx
-  }
-
   function halfWidthFor(x, lvl) {
     return Math.max(0.6, halfWidthAt(x) * widthScaleAt(lvl) - 1.4)
   }
 
   function rebuildSurface() {
-    for (let k = 0; k < pos.count; k += 1) {
-      const bx = baseX[k]
-      const i = compIndexAt(bx)
-      let lvl = levelAt(bx)
-      // 舱壁处不平移顶点（平移会在接缝处立起一张竖直水幕），
-      // 而是把邻近舱壁的那一圈顶点压到两侧较低的水位：
-      // 高水位那侧在舱壁前收一个小斜面，视觉上像水被挡板拦住
-      // 过渡带放宽到 2.6：窄了会变成一堵近竖直的水墙（就是画面里那块发白的竖片），
-      // 放宽后是一段斜面，再配深色顶点色，看起来像舱壁根部的湿面
-      let lip = 0
-      if (i > 0 && bx - edges[i] < 2.6) {
-        lip = Math.max(lip, 1 - (bx - edges[i]) / 2.6)
-        lvl = Math.min(lvl, levels[i - 1] + (lvl - levels[i - 1]) * ((bx - edges[i]) / 2.6))
-      }
-      if (i < comp - 1 && edges[i + 1] - bx < 2.6) {
-        lip = Math.max(lip, 1 - (edges[i + 1] - bx) / 2.6)
-        lvl = Math.min(lvl, levels[i + 1] + (lvl - levels[i + 1]) * ((edges[i + 1] - bx) / 2.6))
-      }
-      const x = bx
-      const maxZ = halfWidthFor(x, lvl)
-      // 该处船底已经高于水位，说明这一段根本没泡到水，把它压到船底高度藏起来
-      const bottom = bottomAt(x, floorY)
-      const y = lvl <= bottom + 0.05 ? bottom : lvl
-      pos.setX(k, x)
-      pos.setZ(k, baseZ[k] * (maxZ / Z_HALF))
-      pos.setY(k, y)
-      // 水浅的地方偏亮偏青，深的地方压暗，剖开的舱室才有纵深
-      const depth = Math.max(0, y - bottom)
-      const t = Math.min(1, depth / 9)
-      // 舱壁根部压暗：过渡斜面在阴影里，不会跳出来
-      const shade = 1 - lip * 0.45
-      colorAttr.setXYZ(k, (1.05 - t * 0.5) * shade, (1.0 - t * 0.42) * shade, (1.0 - t * 0.3) * shade)
+    let ptr = 0
+    const put = (x, y, z, d) => {
+      surfPos[ptr * 3] = x
+      surfPos[ptr * 3 + 1] = y
+      surfPos[ptr * 3 + 2] = z
+      surfCol[ptr * 3] = d
+      surfCol[ptr * 3 + 1] = 1
+      surfCol[ptr * 3 + 2] = 1
+      surfUv[ptr * 2] = (x - X_MIN) / (X_MAX - X_MIN)
+      surfUv[ptr * 2 + 1] = (z + Z_HALF) / (Z_HALF * 2)
+      ptr += 1
     }
-    pos.needsUpdate = true
-    colorAttr.needsUpdate = true
+
+    for (let i = 0; i < comp; i += 1) {
+      const lvl = levels[i]
+      // 干舱完全不出面
+      if (lvl <= floorY + 0.05) continue
+      const x0 = Math.max(X_MIN, edges[i] + INSET)
+      const x1 = Math.min(X_MAX, edges[i + 1] - INSET)
+      if (x1 - x0 < 0.6) continue
+
+      for (let ix = 0; ix < NX; ix += 1) {
+        const xa = x0 + ((x1 - x0) * ix) / NX
+        const xb = x0 + ((x1 - x0) * (ix + 1)) / NX
+        const wa = halfWidthFor(xa, lvl)
+        const wb = halfWidthFor(xb, lvl)
+        const da = Math.max(0, lvl - bottomAt(xa, floorY)) / 9
+        const db = Math.max(0, lvl - bottomAt(xb, floorY)) / 9
+        for (let iz = 0; iz < NZ; iz += 1) {
+          const za = -wa + (2 * wa * iz) / NZ
+          const zb = -wa + (2 * wa * (iz + 1)) / NZ
+          const zc = -wb + (2 * wb * iz) / NZ
+          const zd = -wb + (2 * wb * (iz + 1)) / NZ
+          put(xa, lvl, za, da)
+          put(xa, lvl, zb, da)
+          put(xb, lvl, zd, db)
+          put(xa, lvl, za, da)
+          put(xb, lvl, zd, db)
+          put(xb, lvl, zc, db)
+        }
+      }
+    }
+
+    for (let k = ptr * 3; k < surfPos.length; k += 1) surfPos[k] = 0
+    for (let k = ptr * 3; k < surfCol.length; k += 1) surfCol[k] = 0
+    for (let k = ptr * 2; k < surfUv.length; k += 1) surfUv[k] = 0
+    geo.attributes.position.needsUpdate = true
+    geo.attributes.color.needsUpdate = true
+    geo.attributes.uv.needsUpdate = true
+    geo.setDrawRange(0, ptr)
+    if (ptr > 0) geo.computeVertexNormals()
     geo.computeBoundingSphere()
+    surface.visible = ptr > 0
   }
 
-  // 水体：沿 x 采样，取船壳内壁高度上的半宽，从船底立到水位
   function rebuildBody() {
     let ptr = 0
-    let any = false
-    for (let s = 0; s < BODY_SAMPLES; s += 1) {
-      const x0 = X_MIN + ((X_MAX - X_MIN) * s) / BODY_SAMPLES
-      const x1 = X_MIN + ((X_MAX - X_MIN) * (s + 1)) / BODY_SAMPLES
-      const l0 = levelAt(x0)
-      const l1 = levelAt(x1)
-      const b0 = bottomAt(x0, floorY)
-      const b1 = bottomAt(x1, floorY)
-      if (l0 <= b0 + 0.02 && l1 <= b1 + 0.02) continue
-      const w0 = halfWidthFor(x0, l0)
-      const w1 = halfWidthFor(x1, l1)
+    const put = (x, y, z, d, t) => {
+      bodyPos[ptr * 3] = x
+      bodyPos[ptr * 3 + 1] = y
+      bodyPos[ptr * 3 + 2] = z
+      bodyCol[ptr * 3] = d
+      bodyCol[ptr * 3 + 1] = t
+      bodyCol[ptr * 3 + 2] = 0
+      ptr += 1
+    }
+
+    for (let i = 0; i < comp; i += 1) {
+      const lvl = levels[i]
+      if (lvl <= floorY + 0.05) continue
+      const x0 = Math.max(X_MIN, edges[i] + INSET)
+      const x1 = Math.min(X_MAX, edges[i + 1] - INSET)
+      if (x1 - x0 < 0.6) continue
+
       for (const sign of [1, -1]) {
-        const z0 = w0 * sign
-        const z1 = w1 * sign
-        // 四边形拆两个三角形
-        bodyPos[ptr] = x0; bodyPos[ptr + 1] = b0; bodyPos[ptr + 2] = z0
-        bodyPos[ptr + 3] = x0; bodyPos[ptr + 4] = Math.max(l0, b0); bodyPos[ptr + 5] = z0
-        bodyPos[ptr + 6] = x1; bodyPos[ptr + 7] = Math.max(l1, b1); bodyPos[ptr + 8] = z1
-        ptr += 9
-        bodyPos[ptr] = x1; bodyPos[ptr + 1] = Math.max(l1, b1); bodyPos[ptr + 2] = z1
-        bodyPos[ptr + 3] = x1; bodyPos[ptr + 4] = b1; bodyPos[ptr + 5] = z1
-        bodyPos[ptr + 6] = x0; bodyPos[ptr + 7] = b0; bodyPos[ptr + 8] = z0
-        ptr += 9
-        any = true
+        for (let ix = 0; ix < NX; ix += 1) {
+          const xa = x0 + ((x1 - x0) * ix) / NX
+          const xb = x0 + ((x1 - x0) * (ix + 1)) / NX
+          const wa = halfWidthFor(xa, lvl) * sign
+          const wb = halfWidthFor(xb, lvl) * sign
+          const ba = bottomAt(xa, floorY)
+          const bb = bottomAt(xb, floorY)
+          const ta = Math.max(lvl, ba)
+          const tb = Math.max(lvl, bb)
+          put(xa, ba, wa, 1, 0)
+          put(xa, ta, wa, 0, 1)
+          put(xb, tb, wb, 0, 1)
+          put(xa, ba, wa, 1, 0)
+          put(xb, tb, wb, 0, 1)
+          put(xb, bb, wb, 1, 0)
+        }
       }
     }
-    for (let i = ptr; i < bodyPos.length; i += 1) bodyPos[i] = 0
+
+    for (let k = ptr * 3; k < bodyPos.length; k += 1) bodyPos[k] = 0
+    for (let k = ptr * 3; k < bodyCol.length; k += 1) bodyCol[k] = 0
     bodyGeo.attributes.position.needsUpdate = true
-    bodyGeo.setDrawRange(0, ptr / 3)
-    // 只有 position 时法线会被当成默认值，竖向水面的受光就不对；补算一次
+    bodyGeo.attributes.color.needsUpdate = true
+    bodyGeo.setDrawRange(0, ptr)
     if (ptr > 0) bodyGeo.computeVertexNormals()
-    body.visible = any
+    bodyGeo.computeBoundingSphere()
+    body.visible = ptr > 0
   }
 
   function rebuild() {
@@ -319,12 +445,32 @@ export function createWater({ floorY = -11.6 } = {}) {
       if (Math.abs(levels[i] - next[i]) > 0.002) changed = true
       levels[i] = next[i]
     }
-    // 水位收敛后不再逐帧重建
     if (changed) rebuild()
   }
 
+  // 有流量的舱往流体场里打速度/染料：水面因此是「被水推动的」，不是贴图在滚
+  function splatAt(xWorld, zWorld, strength) {
+    if (!fluid) return
+    const u = (xWorld - X_MIN) / (X_MAX - X_MIN)
+    const v = (zWorld + Z_HALF) / (Z_HALF * 2)
+    if (u < 0 || u > 1 || v < 0 || v > 1) return
+    const s = Math.min(1, Math.abs(strength))
+    if (s < 0.02) return
+    fluid.splatVel(u, v, (Math.random() - 0.5) * s * 3.2, (Math.random() - 0.5) * s * 2.2, 0.006 + s * 0.02)
+    fluid.splatDye(u, v, s * 0.9, s * 0.7, s * 0.6, 0.01 + s * 0.03)
+  }
+
   function setFlows(next) {
-    for (let i = 0; i < comp; i += 1) flows[i] = next[i] || 0
+    for (let i = 0; i < comp; i += 1) {
+      const v = next[i] || 0
+      const was = flows[i]
+      flows[i] = v
+      // 流量突变（漫水、破口进水）时才打点，稳定后不刷
+      if (fluid && Math.abs(v - was) > 0.05 && v > 0.05) {
+        const cx = (edges[i] + edges[i + 1]) / 2
+        splatAt(cx, (Math.random() - 0.5) * 12, v)
+      }
+    }
   }
 
   function setBlend(v) {
@@ -336,10 +482,24 @@ export function createWater({ floorY = -11.6 } = {}) {
   }
 
   function update(dt) {
-    normalMap.offset.x = (normalMap.offset.x + dt * 0.03) % 1
-    normalMap.offset.y = (normalMap.offset.y + dt * 0.018) % 1
-    normalMap2.offset.x = (normalMap2.offset.x - dt * 0.021) % 1
-    normalMap2.offset.y = (normalMap2.offset.y + dt * 0.012) % 1
+    elapsed += dt
+    surfaceUniforms.uTime.value = elapsed
+    // 仍然在流动的舱持续补充扰动，避免水面「死掉」
+    if (fluid) {
+      splatClock += dt
+      if (splatClock > 0.09) {
+        splatClock = 0
+        for (let i = 0; i < comp; i += 1) {
+          if (flows[i] > 0.04) {
+            const cx = (edges[i] + edges[i + 1]) / 2 + (Math.random() - 0.5) * (edges[i + 1] - edges[i]) * 0.5
+            splatAt(cx, (Math.random() - 0.5) * 11, flows[i] * 0.7)
+          }
+        }
+      }
+      fluid.step(dt)
+      surfaceUniforms.uVelocity.value = fluid.velocityTexture
+      surfaceUniforms.uDye.value = fluid.dyeTexture
+    }
   }
 
   setEdges(edges)
@@ -358,6 +518,9 @@ export function createWater({ floorY = -11.6 } = {}) {
     update,
     get compartments() {
       return comp
+    },
+    get hasFluid() {
+      return !!fluid
     },
   }
 }

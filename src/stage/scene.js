@@ -293,7 +293,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
 
   const parts = new Parts(nodes)
   // 水面：一整片按舱分格的高度场，水位由 flood 的每个舱控制
-  const water = createWater({ floorY: -11.6 })
+  const water = createWater({ floorY: -11.6, renderer })
   shipGroup.add(water.mesh)
   const flood = createFlood({ ship: shipGroup, water, bulkheads, floorY: -11.6, topY: 5.2 })
   const caulk = createCaulk(
