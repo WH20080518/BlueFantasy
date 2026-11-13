@@ -182,6 +182,8 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.toneMappingExposure = 0.95
   renderer.outputColorSpace = THREE.SRGBColorSpace
+  // 剖切用裁剪平面：b4/b5 沿船中线切掉靠近相机的一半，露出内壁与十二道隔舱板
+  renderer.localClippingEnabled = true
 
   const scene = new THREE.Scene()
   scene.fog = new THREE.Fog(0x3a2a20, 220, 560)
@@ -199,6 +201,13 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   const sun = new THREE.DirectionalLight(0xfff2dd, 1.5)
   sun.position.set(60, 80, 40)
   scene.add(sun)
+
+  // 剖切时补一盏正面光：外壳被切掉后，船内朝 +Z 的内壁与隔舱板几乎没有直接受光，
+  // 只在 b4/b5 打开，其余屏关闭，避免把整船照平。
+  const cutFill = new THREE.DirectionalLight(0xffe9cf, 0.85)
+  cutFill.position.set(40, 55, 150)
+  cutFill.visible = false
+  scene.add(cutFill)
 
   const built = buildPlaceholders()
   const { shipGroup, detailGroup, shadow, nodes, joint, seam, water, bulkheads } = built
@@ -250,7 +259,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
 
   // DEV 调试钩子：浏览器里可直接读场景状态
   if (import.meta.env.DEV) {
-    window.__bf = { scene, camera, renderer }
+    window.__bf = { scene, camera, renderer, nodes, get cutOn() { return cutOn }, setCutaway }
   }
 
   const parts = new Parts(nodes)
@@ -259,6 +268,60 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
     { upper: seam.refs.upper, lower: seam.refs.lower, marker: seam.refs.marker, caulk: seam.refs.caulk, nails: seam.nails, openY: seam.refs.openY, closedY: seam.refs.closedY },
     reducedMotion,
   )
+
+  // 剖切：沿船中线平面（法线 -Z）裁掉靠近相机的一半外壳与隔舱，
+  // 露出内壁材质与完整的舱室分隔，替代原来整壳半透明的糊影。
+  // GLB 里材质是共享实例（隔舱与 caulk_layer 同一材质），必须克隆后再挂裁剪面，
+  // 否则整艘船的零件都会被切掉；切完还原并重建 flood 的材质引用。
+  const cutPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 2)
+  const CUT_NODES = ['hull_shell']
+  for (let i = 1; i <= 12; i += 1) CUT_NODES.push(`bulkhead_${String(i).padStart(2, '0')}`)
+  const cutSwaps = new Map() // mesh -> 原材质
+  let cutOn = false
+
+  function bulkheadGroups() {
+    const list = []
+    for (let i = 1; i <= 12; i += 1) {
+      const g = nodes.get(`bulkhead_${String(i).padStart(2, '0')}`)
+      if (g) list.push(g)
+    }
+    return list
+  }
+
+  function swapMesh(obj) {
+    if (!obj || !obj.isMesh || !obj.material) return
+    if (cutOn) {
+      if (cutSwaps.has(obj)) return
+      const orig = obj.material
+      const mat = Array.isArray(orig) ? orig.map((m) => m.clone()) : orig.clone()
+      cutSwaps.set(obj, orig)
+      obj.material = mat
+      const list = Array.isArray(mat) ? mat : [mat]
+      list.forEach((m) => {
+        m.clippingPlanes = [cutPlane]
+        m.clipShadows = true
+        m.needsUpdate = true
+      })
+    } else if (cutSwaps.has(obj)) {
+      const clone = obj.material
+      obj.material = cutSwaps.get(obj)
+      cutSwaps.delete(obj)
+      const list = Array.isArray(clone) ? clone : [clone]
+      list.forEach((m) => m.dispose())
+    }
+  }
+
+  function setCutaway(on) {
+    if (on === cutOn) return
+    cutOn = on
+    CUT_NODES.forEach((nm) => nodes.get(nm)?.traverse(swapMesh))
+    // 水面板横贯整个船宽，不一起裁就会从切开的半边溢出去
+    swapMesh(water.comp)
+    swapMesh(water.full)
+    cutFill.visible = on
+    // 隔舱材质换过实例，flood 里缓存的引用要重新登记，否则淡出作用在旧材质上
+    flood.rebindBulkheads(bulkheadGroups())
+  }
 
   let beatIndex = 0
   let spin = 0
@@ -315,18 +378,8 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       if (blend > 0 && next) next.stage.nodes.forEach((n) => visibleSet.add(n))
       parts.setVisible(visibleSet)
 
-      // 剖舱与漏水两屏需要看进船体：有真模型时把外壳调透明，其余屏恢复不透明
-      const seeThrough = beat.id === 'b4' || beat.id === 'b5'
-      for (const nm of ['hull_shell', 'ship_deck']) {
-        const node = nodes.get(nm)
-        if (!node) continue
-        node.traverse((obj) => {
-          if (!obj.isMesh || !obj.material) return
-          obj.material.transparent = seeThrough
-          obj.material.opacity = seeThrough ? 0.55 : 1
-          obj.material.depthWrite = !seeThrough
-        })
-      }
+      // 剖舱与漏水两屏切掉近侧一半船体，其余屏恢复完整船壳
+      setCutaway(beat.id === 'b4' || beat.id === 'b5')
 
       // 相机
       rig.update(beat.stage.camera, next ? next.stage.camera : null, blend, lt, dt)
