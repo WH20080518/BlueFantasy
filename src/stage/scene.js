@@ -235,6 +235,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       if (!gltf || realModel) return
       realModel = gltf
       const bound = bindRealMeshes(gltf, nodes, { unit: spec?.unit })
+      boundParts = bound
       if (bound > 0) {
         // 隔舱被替换后，flood 里的旧材质引用失效；把 12 道重新登记给它
         const list = []
@@ -263,6 +264,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   let beatIndex = 0
   let spin = 0
   let callsChecked = false
+  let boundParts = 0
   const anchorV = new THREE.Vector3()
   const visibleSet = new Set()
   const boxCache = new Map()
@@ -353,11 +355,15 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
 
       renderer.render(scene, camera)
 
-      // 真模型接入后查一次 draw call 预算（阈值 20），避免逐帧刷日志
+      // 真模型接入后查一次 draw call：每个零件至少 1 次，阈值按零件数推导
+      // （23 个零件 → 上限 35），避免把“零件多”误判成浪费
       if (realModel && !callsChecked) {
         callsChecked = true
         const calls = renderer.info.render.calls
-        if (calls > 20) console.warn(`[stage] draw calls ${calls} 超过预算 20`)
+        const limit = Math.max(20, Math.round(boundParts * 1.5))
+        if (calls > limit) {
+          console.warn(`[stage] draw calls ${calls} 超过预算 ${limit}（零件 ${boundParts} 个）`)
+        }
       }
     },
 
