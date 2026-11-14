@@ -54,7 +54,20 @@ function waterNormals() {
 }
 
 export function createOcean({ renderer, scene, camera, sunDir = new THREE.Vector3(0.45, 0.78, 0.44) }) {
-  const geo = new THREE.PlaneGeometry(1, 1, 1, 1)
+  // 水面不是一个矩形：舱是船体里的一段，两侧是弧形的船壳。
+  // 用 N 个横向采样点把宽度画出来，水面才会「贴合船舱」而不是一块方板。
+  const N = 20
+  const pos = new Float32Array(N * 2 * 3)
+  const uvs = new Float32Array(N * 2 * 2)
+  const idx = []
+  for (let i = 0; i < N - 1; i += 1) {
+    const a = i * 2
+    idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2)
+  }
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+  geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2))
+  geo.setIndex(idx)
   const mesh = new Water(geo, {
     textureWidth: 512,
     textureHeight: 512,
@@ -118,18 +131,42 @@ export function createOcean({ renderer, scene, camera, sunDir = new THREE.Vector
   cutFace.renderOrder = 3
 
   let elapsed = 0
+  let cutMode = true
 
-  // extent: {x0,x1,z0,z1}（船体坐标），y: 水位
-  function setExtent({ x0, x1, z0, z1, y }) {
-    const sx = Math.max(0.1, x1 - x0)
-    const sz = Math.max(0.1, z1 - z0)
-    mesh.scale.set(sx, sz, 1)
-    mesh.position.set((x0 + x1) / 2, y, (z0 + z1) / 2)
-    // 断面贴在 z1（靠近观察者的切口），从舱底一直到水面
-    const depth = Math.max(0.1, y - (-11.6))
-    cutFace.scale.set(sx, depth, 1)
-    // 贴在切口内侧 0.02，避免正好落在裁剪平面上被裁掉
-    cutFace.position.set((x0 + x1) / 2, y - depth / 2, z1 - 0.02)
+  // halfWidth(x) → 该处船壳的内半宽；zCut 是剖切面位置（没有剖切时给 Infinity）
+  function setShape({ x0, x1, y, halfWidth, zCut = 2 }) {
+    const P = geo.attributes.position.array
+    const U = geo.attributes.uv.array
+    let cutAny = false
+    for (let i = 0; i < N; i += 1) {
+      const t = N === 1 ? 0 : i / (N - 1)
+      const x = x0 + (x1 - x0) * t
+      const w = Math.max(0.4, halfWidth(x))
+      const zNear = Math.min(w, zCut)
+      if (w > zCut + 0.05) cutAny = true
+      const a = i * 6
+      P[a] = x
+      P[a + 1] = y
+      P[a + 2] = -w
+      P[a + 3] = x
+      P[a + 4] = y
+      P[a + 5] = zNear
+      const u = i * 4
+      U[u] = t
+      U[u + 1] = 0
+      U[u + 2] = t
+      U[u + 3] = 1
+    }
+    geo.attributes.position.needsUpdate = true
+    geo.attributes.uv.needsUpdate = true
+    geo.computeVertexNormals()
+    geo.computeBoundingSphere()
+
+    // 断面：从舱底铺到水面下 0.06（共面会 z-fighting，表现为闪烁）
+    const depth = Math.max(0.1, y - 0.06 - (-11.6))
+    cutFace.scale.set(Math.max(0.1, x1 - x0), depth, 1)
+    cutFace.position.set((x0 + x1) / 2, y - 0.06 - depth / 2, zCut - 0.02)
+    cutMode = cutAny
   }
 
   function update(dt) {
@@ -141,8 +178,8 @@ export function createOcean({ renderer, scene, camera, sunDir = new THREE.Vector
 
   function setVisible(v) {
     mesh.visible = v
-    cutFace.visible = v
+    cutFace.visible = v && cutMode
   }
 
-  return { mesh, cutFace, setExtent, setVisible, update }
+  return { mesh, cutFace, setShape, setVisible, update }
 }

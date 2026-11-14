@@ -688,7 +688,7 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
       }
     }
     if (best < 0 || lvl <= floorY + 0.05) return null
-    return { x0: edges[best], x1: edges[best + 1], level: lvl }
+    return { index: best, x0: edges[best], x1: edges[best + 1], level: lvl }
   }
 
   // b4 用官方 Water 时，把手写的水面/水体让位，避免两层水面打架

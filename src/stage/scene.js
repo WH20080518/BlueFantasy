@@ -179,7 +179,11 @@ function addBulkheadCaps(shipGroup, nodes) {
     const name = `bulkhead_${String(i).padStart(2, '0')}`
     const g = nodes.get(name)
     if (!g || g.userData.capped) continue
+    g.updateWorldMatrix(true, true)
+    // 用局部包围盒：压顶条必须挂在这道隔舱板自己身上，
+    // 否则它不受 beat 可见性控制——b2 里就会有一排木条浮在半空。
     const box = new THREE.Box3().setFromObject(g)
+    box.applyMatrix4(new THREE.Matrix4().copy(g.matrixWorld).invert())
     if (box.isEmpty()) continue
     const size = box.getSize(new THREE.Vector3())
 
@@ -202,7 +206,8 @@ function addBulkheadCaps(shipGroup, nodes) {
     )
     cap.castShadow = false
     cap.receiveShadow = false
-    shipGroup.add(cap)
+    // 挂在隔舱板组下：跟着 beat 一起显隐，也跟着剖切面一起被裁
+    g.add(cap)
     g.userData.capped = true
     added += 1
   }
@@ -545,7 +550,24 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       ocean.setVisible(wantOcean)
       water.setSurfaceHidden(wantOcean)
       if (wantOcean) {
-        ocean.setExtent({ x0: dom.x0, x1: dom.x1, z0: -11, z1: 2, y: dom.level })
+        // 逐点量船宽：沿 +Z 打射线穿船壳，命中点就是那一处的水线半宽。
+        // 不这样做的话，水面就是一块矩形板，从弧形的船壳两侧戳出去，
+        // 看起来像被切掉一截的方块，而不是躺在舱里的水。
+        const hull = nodes.get('hull_shell')
+        const hullMeshes = []
+        if (hull) hull.traverse((o) => { if (o.isMesh) hullMeshes.push(o) })
+        const ray = new THREE.Raycaster()
+        const dir = new THREE.Vector3(0, 0, 1)
+        const halfWidth = (x) => {
+          if (!hullMeshes.length) return 11
+          ray.set(new THREE.Vector3(x, dom.level, 0), dir)
+          const hits = ray.intersectObjects(hullMeshes, false)
+          let w = 0
+          for (const h of hits) if (h.point.z > w) w = h.point.z
+          // 船壳两侧各有一层（内外），取最外的那个命中；没打中就退回窄一点的值
+          return w > 0.5 ? w - 0.15 : 11
+        }
+        ocean.setShape({ x0: dom.x0, x1: dom.x1, y: dom.level, halfWidth, zCut: 2 })
         ocean.update(dt)
       }
 
