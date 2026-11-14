@@ -171,6 +171,8 @@ function clampedDPR() {
 }
 
 export async function createStage({ canvas, beats, reducedMotion, base, onModelFail }) {
+  // 只在特写镜头里出现的零件：尺寸是给近景定的，远景会穿出船壳
+  const ZOOM_ONLY = new Set(['joint_tenon', 'joint_mortise', 'plank_seam', 'nail_set', 'caulk_layer'])
   const renderer = new THREE.WebGLRenderer({
     canvas,
     alpha: true,
@@ -451,7 +453,16 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       // 可见性：相机混合期间显示两个 beat 的并集
       visibleSet.clear()
       nodeSetFor(i).forEach((n) => visibleSet.add(n))
-      if (blend > 0 && next) next.stage.nodes.forEach((n) => visibleSet.add(n))
+      if (blend > 0 && next) {
+        // 榫卯/接缝这几件是「放大看」的示意件，尺寸按镜头距离定的。
+        // 相机还在整船视角时就把它们并进来，会从船壳里穿出来——
+        // 所以在混合过半之前先不显示，等镜头拉近了再出现。
+        const early = blend > 0.5
+        next.stage.nodes.forEach((n) => {
+          if (!early && ZOOM_ONLY.has(n)) return
+          visibleSet.add(n)
+        })
+      }
       parts.setVisible(visibleSet)
 
       // 剖舱与漏水两屏切掉近侧一半船体，其余屏恢复完整船壳

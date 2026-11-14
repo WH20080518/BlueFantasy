@@ -247,16 +247,47 @@ precision highp float;
 uniform vec3 uDeep;
 uniform vec3 uShallow;
 uniform float uOpacity;
+uniform sampler2D uScene;
+uniform float uHasScene;
+uniform sampler2D uRipple;
+uniform vec2 uResolution;
+uniform float uTime;
+uniform vec3 uSunDir;
 varying vec3 vWorldPos;
 varying float vDepthC;
 varying float vTop;
 ${CLIP_PARS_FRAG}
 void main() {
   ${CLIP_FRAG}
-  // 水下体积：越深越暗越浑，靠近水线处略亮（散射），整体偏哑光
-  vec3 col = mix(uShallow * 0.70, uDeep * 0.42, clamp(vDepthC, 0.0, 1.0));
-  col += uShallow * 0.18 * pow(vTop, 5.0);
-  float alpha = mix(0.44, 0.88, clamp(vDepthC, 0.0, 1.0));
+  float d = clamp(vDepthC, 0.0, 1.0);
+
+  // 水体侧面不能是纯色——纯色就是玻璃。
+  // 先采样「无水场景」，按深度吸收：越深，后面的舱壁越看不见，只剩水色。
+  vec3 col;
+  if (uHasScene > 0.5) {
+    vec2 suv = gl_FragCoord.xy / uResolution;
+    vec2 off = vec2(sin(vWorldPos.y * 2.6 + uTime * 0.9),
+                    cos(vWorldPos.x * 1.4 - uTime * 0.7)) * 0.006 * (0.4 + d);
+    vec3 raw = texture2D(uScene, clamp(suv + off, vec2(0.001), vec2(0.999))).rgb;
+    vec3 absorb = mix(vec3(0.62, 0.86, 0.84), vec3(0.05, 0.20, 0.24), d);
+    col = raw * absorb;
+  } else {
+    col = mix(uShallow * 0.70, uDeep * 0.42, d);
+  }
+
+  // 竖向浑浊带 + 细颗粒：侧面有东西在动，才不会读成一块亚克力
+  float band = 0.5 + 0.5 * sin(vWorldPos.y * 5.0 - uTime * 1.1 + sin(vWorldPos.x * 1.9) * 1.6);
+  float grain = texture2D(uRipple, vec2(vWorldPos.x * 0.05, vWorldPos.y * 0.09 + uTime * 0.02)).x;
+  col *= 0.90 + 0.10 * band + 0.06 * grain;
+
+  // 靠近水线处散射更亮
+  col += uShallow * 0.10 * pow(vTop, 6.0);
+
+  // 侧向掠射高光：整片死色最容易被看成塑料
+  float spec = pow(max(dot(normalize(vec3(0.0, 0.2, 1.0)), normalize(uSunDir)), 0.0), 12.0);
+  col += vec3(0.35, 0.5, 0.5) * spec * 0.25;
+
+  float alpha = mix(0.66, 0.96, d) * uOpacity;
   gl_FragColor = vec4(col, alpha * uOpacity);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -346,6 +377,12 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
     uDeep: { value: new THREE.Color(0x03151b) },
     uShallow: { value: new THREE.Color(0x0e3b42) },
     uOpacity: { value: 1 },
+    uScene: { value: null },
+    uHasScene: { value: 0 },
+    uRipple: { value: ripple },
+    uResolution: { value: new THREE.Vector2(1, 1) },
+    uTime: { value: 0 },
+    uSunDir: { value: new THREE.Vector3(0.45, 0.78, 0.44) },
   }
   const bodyMat = new THREE.ShaderMaterial({
     vertexShader: BODY_VERT,
@@ -595,6 +632,7 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
   function update(dt) {
     elapsed += dt
     surfaceUniforms.uTime.value = elapsed
+    bodyUniforms.uTime.value = elapsed
     // 各舱水位差很小，取平均值当反射平面，误差看不出
     let lvlSum = 0
     let lvlN = 0
@@ -640,8 +678,11 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
   function setSceneTexture(tex, width, height) {
     surfaceUniforms.uScene.value = tex || null
     surfaceUniforms.uHasScene.value = tex ? 1 : 0
+    bodyUniforms.uScene.value = tex || null
+    bodyUniforms.uHasScene.value = tex ? 1 : 0
     if (tex && width && height) {
       surfaceUniforms.uResolution.value.set(width, height)
+      bodyUniforms.uResolution.value.set(width, height)
     }
   }
 
