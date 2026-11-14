@@ -224,6 +224,8 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
 
   // 真模型异步接入：不阻塞首屏，失败/超时保持占位几何。
   let realModel = null
+  // 声明必须在 .then 之前：回调里会写它，靠“异步执行时声明已就绪”是 TDZ 边缘
+  let boundParts = 0
   loadShip(`${base}models/ship.glb`, {
     base,
     // 仅“文件存在但解析失败”上报给上层；缺失/超时属于模型未交付，保持占位。
@@ -263,8 +265,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
 
   let beatIndex = 0
   let spin = 0
-  let callsChecked = false
-  let boundParts = 0
+  let callsWarned = false
   const anchorV = new THREE.Vector3()
   const visibleSet = new Set()
   const boxCache = new Map()
@@ -355,13 +356,14 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
 
       renderer.render(scene, camera)
 
-      // 真模型接入后查一次 draw call：每个零件至少 1 次，阈值按零件数推导
-      // （23 个零件 → 上限 35），避免把“零件多”误判成浪费
-      if (realModel && !callsChecked) {
-        callsChecked = true
+      // draw call 预算：每个零件至少 1 次，阈值按零件数推导（23 个零件 → 上限 35）。
+      // 不能在「接入后的第一帧」判一次——那一帧只有当前 beat 的零件可见，
+      // 测到的是最省的画面，等于永不报警。改成逐帧看，哪一帧超了报哪一帧，只报一次。
+      if (realModel && !callsWarned) {
         const calls = renderer.info.render.calls
-        const limit = Math.max(20, Math.round(boundParts * 1.5))
+        const limit = Math.max(20, Math.ceil(boundParts * 1.5))
         if (calls > limit) {
+          callsWarned = true
           console.warn(`[stage] draw calls ${calls} 超过预算 ${limit}（零件 ${boundParts} 个）`)
         }
       }
