@@ -267,10 +267,10 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
 
   const built = buildPlaceholders()
   const { shipGroup, detailGroup, shadow, nodes, joint, seam, bulkheads } = built
-  // b3 的板缝/木钉同样整体左移，和 b2 的榫卯保持同一个画面落点
-  seam.seam.position.x += JOINT_OFFSET_X
-  seam.nails.position.x += JOINT_OFFSET_X
-  seam.caulkLayer.position.x += JOINT_OFFSET_X
+  // 整组（榫卯、板缝、木钉、捻缝层）统一左移：
+  // 挂在父亲上做偏移，而不是逐个改子对象——caulk 交互每帧会重写木钉位置，
+  // 在子对象上 += 会被它覆盖掉。
+  detailGroup.position.x = JOINT_OFFSET_X
   scene.add(shipGroup, detailGroup, shadow)
 
   // parts.json（可选）：应用装配/爆炸位

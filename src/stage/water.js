@@ -678,6 +678,13 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
 
   // 当前进水最多的那个舱（无隔舱时 13 个还以为是一个大面积）。
   // b4 用这三项把官方 Water 摆到正确的位置。
+  // 当前进水最多的那个舱。
+  //
+  // 必须带迟滞：两个舱水位接近时，逐帧取最大值会让「有水的舱」在相邻两舱之间
+  // 来回跳（水面瞬移 = 闪烁）。所以记住上一次选中的舱，只有别的舱高出
+  // 0.6 个单位才换。视觉上 0.6 看不出来，但它挡住了每帧抖动。
+  let domIndex = -1
+  const SWITCH_MARGIN = 0.6
   function dominant() {
     let best = -1
     let lvl = -Infinity
@@ -687,8 +694,21 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
         best = i
       }
     }
-    if (best < 0 || lvl <= floorY + 0.05) return null
-    return { index: best, x0: edges[best], x1: edges[best + 1], level: lvl }
+    if (best < 0 || lvl <= floorY + 0.05) {
+      domIndex = -1
+      return null
+    }
+    if (domIndex < 0 || domIndex >= comp || levels[domIndex] <= floorY + 0.05) {
+      domIndex = best
+    } else if (best !== domIndex && levels[best] > levels[domIndex] + SWITCH_MARGIN) {
+      domIndex = best
+    }
+    return {
+      index: domIndex,
+      x0: edges[domIndex],
+      x1: edges[domIndex + 1],
+      level: levels[domIndex],
+    }
   }
 
   // b4 用官方 Water 时，把手写的水面/水体让位，避免两层水面打架
