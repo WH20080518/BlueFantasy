@@ -1,5 +1,5 @@
 import { beats, ui } from '../content/beats.js'
-import { termWall, termById, nodeTerms } from '../content/glossary.js'
+import { termWall, termById, resolveNode, termGloss } from '../content/glossary.js'
 import { createQuiz } from './quiz.js'
 import { sealChars } from '../content/seal.js'
 
@@ -92,6 +92,17 @@ export function createOverlay({ reducedMotion, fallbackMode, handlers, initialLa
   el.floodUI.appendChild(floodStatus)
   el.caulkStatus.setAttribute('aria-live', 'polite')
 
+  // 零件浮层：视觉层每帧重建（相机在动），所以 aria-live 放在一个常驻的隐藏 status 上，
+  // 视觉浮层本身对辅助技术隐藏，避免同一句话被反复朗读。
+  const partAnnounce = document.createElement('p')
+  partAnnounce.id = 'part-announce'
+  partAnnounce.className = 'sr-only'
+  partAnnounce.setAttribute('role', 'status')
+  partAnnounce.setAttribute('aria-live', 'polite')
+  el.stage.appendChild(partAnnounce)
+  el.partLabel.setAttribute('aria-hidden', 'true')
+  let announcedPart = null
+
   // 「重来」按钮：三步完成后显示，点击回到补缝前状态。
   const caulkReset = document.createElement('button')
   caulkReset.type = 'button'
@@ -130,6 +141,18 @@ let lastInteractionBeat = -1
   }
 
   const t = (v) => v[lang]
+
+  // 读屏文本：中文念「中文名 英文名，类型。解释」；英文念「英文名 编号 — 类型. 解释」
+  function announceText(term, seq) {
+    const typeLabel = t(ui.termType[term.type] || { zh: term.type, en: term.type })
+    const gloss = termGloss[term.id]
+    if (lang === 'en') {
+      const name = seq ? `${term.en} ${seq}` : term.en
+      return `${name} — ${typeLabel}.${gloss ? ' ' + gloss.en : ''}`
+    }
+    const name = seq ? `${term.zh} ${seq}` : term.zh
+    return `${name} ${term.en}，${typeLabel}。${gloss ? gloss.zh : ''}`
+  }
 
   function button(label, ariaLabel) {
     const b = document.createElement('button')
@@ -358,6 +381,8 @@ let lastInteractionBeat = -1
       renderCaulkUI()
       setFloodActive(floodActiveName)
       quiz.setLang(lang)
+      // 浮层可能钉在某个零件上：换语言后让它按新语言重新朗读一次
+      announcedPart = null
     },
     get lang() {
       return lang
@@ -382,14 +407,20 @@ let lastInteractionBeat = -1
       renderCaulkUI()
     },
     setFloodActive,
-    // 零件名称浮层：中 / 英 / 类型
+    // 零件名称浮层：中 / 英 / 类型 / 一句解释（四类文字，上限见 docs/17-node-terms.md）
     showPartLabel(name) {
-      const term = termById(nodeTerms[name])
-      if (!term) return
+      const hit = resolveNode(name)
+      if (!hit) {
+        el.partLabel.hidden = true
+        // 清掉播报记录：不然「悬停已播报的零件 → 悬停未映射节点 → 再回到原零件」
+        // 第三次不会重新朗读，读屏用户会以为没反应
+        announcedPart = null
+        return
+      }
+      const { term, seq } = hit
       el.partLabel.innerHTML = ''
       const zh = document.createElement('strong')
-      const seq = name.match(/_(\d+)$/)
-      zh.textContent = seq ? `${term.zh} ${seq[1]}` : term.zh
+      zh.textContent = seq ? `${term.zh} ${seq}` : term.zh
       const en = document.createElement('span')
       en.className = 'en'
       en.textContent = term.en
@@ -397,14 +428,38 @@ let lastInteractionBeat = -1
       type.className = 't-type'
       type.textContent = t(ui.termType[term.type] || { zh: term.type, en: term.type })
       el.partLabel.append(zh, en, type)
+      const gloss = termGloss[term.id]
+      if (gloss) {
+        const g = document.createElement('span')
+        g.className = 'gloss'
+        g.textContent = t(gloss)
+        el.partLabel.append(g)
+      }
       el.partLabel.hidden = false
+      // 只在换成另一个零件时朗读，相机移动导致的重绘不触发
+      if (announcedPart !== name) {
+        announcedPart = name
+        partAnnounce.textContent = announceText(term, seq)
+      }
     },
     positionPartLabel(x, y) {
-      el.partLabel.style.left = `${x}px`
-      el.partLabel.style.top = `${y}px`
+      // 浮层用 translate(-50%, -115%) 定位，所以 x 是中线、y 是底边之上。
+      // 窄屏 / 零件靠近边缘时把浮层夹回视口内，否则会飘到屏幕外。
+      const pad = 8
+      const w = el.partLabel.offsetWidth
+      const h = el.partLabel.offsetHeight
+      const minX = w / 2 + pad
+      const maxX = window.innerWidth - w / 2 - pad
+      const minY = h * 1.15 + pad
+      const maxY = window.innerHeight - pad
+      const cx = Math.min(Math.max(x, minX), Math.max(minX, maxX))
+      const cy = Math.min(Math.max(y, minY), Math.max(minY, maxY))
+      el.partLabel.style.left = `${Math.round(cx)}px`
+      el.partLabel.style.top = `${Math.round(cy)}px`
     },
     hidePartLabel() {
       el.partLabel.hidden = true
+      announcedPart = null
     },
   }
 }
