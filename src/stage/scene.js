@@ -301,6 +301,13 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   // 水面：一整片按舱分格的高度场，水位由 flood 的每个舱控制
   const water = createWater({ floorY: -11.6, renderer, scene, camera })
   shipGroup.add(water.mesh)
+  // 折射用的「无水场景」：半分辨率就够了——水下本来就被水色压暗，
+  // 高分辨率只是白花一次全场景绘制的开销。
+  const waterSceneRT = new THREE.WebGLRenderTarget(512, 288, {
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter,
+    depthBuffer: true,
+  })
   const flood = createFlood({ ship: shipGroup, water, bulkheads, floorY: -11.6, topY: 5.2 })
   const caulk = createCaulk(
     { upper: seam.refs.upper, lower: seam.refs.lower, marker: seam.refs.marker, caulk: seam.refs.caulk, nails: seam.nails, openY: seam.refs.openY, closedY: seam.refs.closedY },
@@ -404,6 +411,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
     const w = canvas.clientWidth || 1
     const h = canvas.clientHeight || 1
     renderer.setSize(w, h, false)
+    waterSceneRT.setSize(Math.max(1, Math.round(w * 0.6)), Math.max(1, Math.round(h * 0.6)))
     camera.aspect = w / h
     camera.updateProjectionMatrix()
   }
@@ -471,6 +479,26 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
         caulk.update(dt, lt)
       }
       flood.update(dt)
+
+      // 水面折射：先把「不含水体」的场景渲进纹理，水面再按屏幕坐标采样它，
+      // 于是水下那层木头是被折射、被水色吸收过的——这是「像水」的关键一步。
+      // 只在有水面的两屏多画一次，其余屏不受影响。
+      if (water.mesh.visible) {
+        water.mesh.visible = false
+        const prevRT = renderer.getRenderTarget()
+        renderer.setRenderTarget(waterSceneRT)
+        renderer.clear()
+        renderer.render(scene, camera)
+        renderer.setRenderTarget(prevRT)
+        water.mesh.visible = true
+        water.setSceneTexture(
+          waterSceneRT.texture,
+          renderer.domElement.width || 1,
+          renderer.domElement.height || 1,
+        )
+      } else {
+        water.setSceneTexture(null)
+      }
 
       renderer.render(scene, camera)
 

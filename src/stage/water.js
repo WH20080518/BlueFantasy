@@ -91,6 +91,7 @@ varying vec3 vWorldPos;
 varying vec3 vNormalW;
 varying vec2 vUv2;
 varying float vDepthC;
+varying float vPosX;
 ${CLIP_PARS_VERT}
 void main() {
   vec4 wp = modelMatrix * vec4(position, 1.0);
@@ -98,6 +99,7 @@ void main() {
   vNormalW = normalize(mat3(modelMatrix) * normal);
   vUv2 = uv;
   vDepthC = color.r;
+  vPosX = position.x;
   // 名字必须是 mvPosition：three 的 clipping_planes_vertex 里会读它
   vec4 mvPosition = viewMatrix * wp;
   gl_Position = projectionMatrix * mvPosition;
@@ -111,6 +113,10 @@ uniform sampler2D uRipple;
 uniform sampler2D uVelocity;
 uniform sampler2D uDye;
 uniform sampler2D uRefl;
+uniform sampler2D uScene;
+uniform float uHasScene;
+uniform float uEdge[16];
+uniform float uEdgeCount;
 uniform vec2 uResolution;
 uniform float uHasRefl;
 uniform float uTimeB;
@@ -125,6 +131,7 @@ varying vec3 vWorldPos;
 varying vec3 vNormalW;
 varying vec2 vUv2;
 varying float vDepthC;
+varying float vPosX;
 ${CLIP_PARS_FRAG}
 
 void main() {
@@ -167,7 +174,21 @@ void main() {
   // 体积吸收：浅处透青，深处压到墨绿
   vec3 body = mix(uShallow, uDeep, clamp(vDepthC, 0.0, 1.0));
 
-  vec3 col = mix(body, sky, clamp(0.12 + fres * 0.75, 0.0, 1.0));
+  // 折射：先看不含水体的场景（舱底、隔舱壁），按波纹法线做位移，再乘吸收色。
+  // 这一步是「像水」和「像一块有反光的板」的分界——
+  // 只有反射的水面永远读成镜子，看得见水下被折射、被染色的木头才是水。
+  vec3 below = body;
+  if (uHasScene > 0.5) {
+    vec2 suvS = gl_FragCoord.xy / uResolution;
+    vec2 distort = vec2(N.x, N.z) * 0.045;
+    vec3 raw = texture2D(uScene, clamp(suvS + distort, vec2(0.001), vec2(0.999))).rgb;
+    // 吸收：浅处几乎透明，深处压到墨绿——水越厚，越看不见底
+    vec3 absorb = mix(vec3(0.80, 0.98, 0.94), vec3(0.10, 0.32, 0.36),
+                      clamp(vDepthC * 0.85 + 0.15, 0.0, 1.0));
+    below = raw * absorb + body * 0.12;
+  }
+
+  vec3 col = mix(below, sky, clamp(0.08 + fres * 0.88, 0.0, 1.0));
 
   // 太阳高光
   vec3 L = normalize(uSunDir);
@@ -180,6 +201,18 @@ void main() {
   float shore = smoothstep(0.22, 0.0, vDepthC);
   float foam = smoothstep(0.30, 0.85, dye * 1.6 + peak * 0.25 + shore * 0.35) * (0.35 + shore * 0.65);
   col = mix(col, uFoam, clamp(foam, 0.0, 0.92));
+
+  // 水线：水面与舱壁相交那一圈。真实的水在那里一定有一条亮边——
+  // 有边才知道水是躺在舱里的，而不是浮在船上的贴纸。
+  // 按世界 x 到最近舱壁的距离算（UV 是全船归一化的，拿来做边会跑到船头船尾去）。
+  float wall = 999.0;
+  for (int i = 0; i < 16; i++) {
+    if (float(i) < uEdgeCount) wall = min(wall, abs(vPosX - uEdge[i]));
+  }
+  float rim = 1.0 - smoothstep(0.0, 0.55, wall);
+  col += vec3(0.40, 0.52, 0.50) * rim * 0.35;
+  float lapping = 0.55 + 0.45 * sin(uTime * 1.7 + vPosX * 3.1 + vUv2.y * 17.0);
+  col = mix(col, uFoam, clamp(rim * lapping * 0.55, 0.0, 0.8));
 
   // 深处的舱底本来就看不见，水越深越不透；掠射角再抬一点
   float alpha = mix(uOpacity * 0.72, 0.95, fres) + clamp(vDepthC, 0.0, 1.0) * 0.12;
@@ -279,6 +312,10 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
     uFoam: { value: new THREE.Color(0xb9cbc7) },
     uSunDir: { value: new THREE.Vector3(0.45, 0.78, 0.44) },
     uRefl: { value: reflRT ? reflRT.texture : ripple },
+    uScene: { value: null },
+    uHasScene: { value: 0 },
+    uEdge: { value: new Array(16).fill(0) },
+    uEdgeCount: { value: 0 },
     uResolution: { value: new THREE.Vector2(1, 1) },
     uHasRefl: { value: 0 },
     uTimeB: { value: 0 },
@@ -479,6 +516,9 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
     const list = xs.slice(0, MAX_COMP + 1)
     comp = Math.max(1, list.length - 1)
     edges = list.slice()
+    const arr = surfaceUniforms.uEdge.value
+    for (let i = 0; i < arr.length; i += 1) arr[i] = i < list.length ? list[i] : 0
+    surfaceUniforms.uEdgeCount.value = list.length
     levels = new Array(comp).fill(floorY)
     flows = new Array(comp).fill(0)
     rebuild()
@@ -595,6 +635,16 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
 
   setEdges(edges)
 
+  // 折射用的「无水场景」纹理：由 scene.js 每帧渲染后传进来。
+  // 传 null 就退回纯反射 + 体积色，没有 scene 引用的调用方也不会崩。
+  function setSceneTexture(tex, width, height) {
+    surfaceUniforms.uScene.value = tex || null
+    surfaceUniforms.uHasScene.value = tex ? 1 : 0
+    if (tex && width && height) {
+      surfaceUniforms.uResolution.value.set(width, height)
+    }
+  }
+
   return {
     group,
     mesh: group,
@@ -606,6 +656,7 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
     setLevels,
     setFlows,
     setBlend,
+    setSceneTexture,
     update,
     get compartments() {
       return comp
