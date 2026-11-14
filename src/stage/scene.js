@@ -171,6 +171,44 @@ function clampedDPR() {
   return Math.min(window.devicePixelRatio || 1, 2)
 }
 
+// 隔舱板是 GLB 里的薄板：顶边一条直棱，在暗舱里读起来像一叠卡片。
+// 给每道板补一条压顶木条（真实隔舱都有），边缘有了厚度和转折，就不突兀了。
+function addBulkheadCaps(shipGroup, nodes) {
+  let added = 0
+  for (let i = 1; i <= 12; i += 1) {
+    const name = `bulkhead_${String(i).padStart(2, '0')}`
+    const g = nodes.get(name)
+    if (!g || g.userData.capped) continue
+    const box = new THREE.Box3().setFromObject(g)
+    if (box.isEmpty()) continue
+    const size = box.getSize(new THREE.Vector3())
+
+    let baseMat = null
+    g.traverse((o) => {
+      if (!baseMat && o.isMesh && o.material) {
+        baseMat = Array.isArray(o.material) ? o.material[0] : o.material
+      }
+    })
+    const mat = baseMat ? baseMat.clone() : new THREE.MeshStandardMaterial({ color: 0x6b4b33 })
+    mat.color = mat.color.clone().multiplyScalar(0.82)
+    mat.roughness = 0.9
+
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(size.x * 0.98, 0.34, size.z * 1.04), mat)
+    cap.name = `${name}_cap`
+    cap.position.set(
+      (box.min.x + box.max.x) / 2,
+      box.max.y + 0.1,
+      (box.min.z + box.max.z) / 2,
+    )
+    cap.castShadow = false
+    cap.receiveShadow = false
+    shipGroup.add(cap)
+    g.userData.capped = true
+    added += 1
+  }
+  return added
+}
+
 export async function createStage({ canvas, beats, reducedMotion, base, onModelFail }) {
   // 只在特写镜头里出现的零件：尺寸是给近景定的，远景会穿出船壳
   const ZOOM_ONLY = new Set(['joint_tenon', 'joint_mortise', 'plank_seam', 'nail_set', 'caulk_layer'])
@@ -279,6 +317,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
           console.info(`[stage] 水面分舱 ${edgeList.length - 1} 格`)
         }
         console.info(`[stage] GLB 已接入 ${bound} 个零件，隔舱 ${list.length} 道`)
+        addBulkheadCaps(shipGroup, nodes)
         // 深链直接落在 b4/b5 时，模型可能晚于剖切开关绑定：
         // 旧占位网格的克隆材质已经随 group.clear() 脱离场景，新网格却还没有裁剪面，
         // 而 setCutaway 的 guard 会把这个状态一直挡住，所以这里强制重挂一次。
