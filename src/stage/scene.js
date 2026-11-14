@@ -352,6 +352,14 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   function setCutaway(on) {
     if (on === cutOn) return
     cutOn = on
+    // 剖切面切的是「靠近观众的那一半」。现在 b4/b5 的机位都在 +Z 一侧，
+    // 法线取 -Z；但机位预设是可改的，这里按相机所在侧翻法线，
+    // 免得哪天换了机位或者加了轨道旋转，剖开的是背面。
+    if (on) {
+      const dir = camera.position.z >= 0 ? -1 : 1
+      cutPlane.normal.set(0, 0, dir)
+      cutPlane.constant = dir < 0 ? 2 : -2
+    }
     CUT_NODES.forEach((nm) => nodes.get(nm)?.traverse(swapMesh))
     // 水面/水体横贯整个船宽，不一起裁就会从切开的半边溢出去。
     // 这两份材质是水独占的，直接挂裁剪面即可（它们没有和别的零件共享实例）
