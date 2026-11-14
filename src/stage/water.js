@@ -676,6 +676,27 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
 
   setEdges(edges)
 
+  // 当前进水最多的那个舱（无隔舱时 13 个还以为是一个大面积）。
+  // b4 用这三项把官方 Water 摆到正确的位置。
+  function dominant() {
+    let best = -1
+    let lvl = -Infinity
+    for (let i = 0; i < comp; i += 1) {
+      if (levels[i] > lvl) {
+        lvl = levels[i]
+        best = i
+      }
+    }
+    if (best < 0 || lvl <= floorY + 0.05) return null
+    return { x0: edges[best], x1: edges[best + 1], level: lvl }
+  }
+
+  // b4 用官方 Water 时，把手写的水面/水体让位，避免两层水面打架
+  function setSurfaceHidden(hidden) {
+    surface.visible = !hidden
+    body.visible = !hidden
+  }
+
   // 折射用的「无水场景」纹理：由 scene.js 每帧渲染后传进来。
   // 传 null 就退回纯反射 + 体积色，没有 scene 引用的调用方也不会崩。
   function setSceneTexture(tex, width, height) {
@@ -701,6 +722,8 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
     setFlows,
     setBlend,
     setSceneTexture,
+    dominant,
+    setSurfaceHidden,
     update,
     get compartments() {
       return comp

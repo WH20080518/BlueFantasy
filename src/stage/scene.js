@@ -7,6 +7,7 @@ import { createFlood } from '../interactions/flood.js'
 import { createCaulk } from '../interactions/caulk.js'
 import { loadShip } from './loader.js'
 import { createWater } from './water.js'
+import { createOcean } from './ocean.js'
 
 // three 场景：渲染循环、resize（DPR 上限 2）、半球光 + 方向光（无阴影贴图）。
 
@@ -303,6 +304,11 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   // 水面：一整片按舱分格的高度场，水位由 flood 的每个舱控制
   const water = createWater({ floorY: -11.6, renderer, scene, camera })
   shipGroup.add(water.mesh)
+  // b4（单舱进水）用 three 官方 Water：真实反射 + 折射通道。
+  // b5 是 13 舱同淹，每个实例两次全场景渲染撑不住，仍用手写方案。
+  const ocean = createOcean({ renderer, scene, camera })
+  shipGroup.add(ocean.mesh)
+  shipGroup.add(ocean.cutFace)
   // 折射用的「无水场景」：半分辨率就够了——水下本来就被水色压暗，
   // 高分辨率只是白花一次全场景绘制的开销。
   const waterSceneRT = new THREE.WebGLRenderTarget(512, 288, {
@@ -490,6 +496,19 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
         caulk.update(dt, lt)
       }
       flood.update(dt)
+
+      // b4 单舱进水：换成官方 Water 渲染那一块水面，手写水面让位。
+      // 水体要跟着剖切面走：相机在 +Z，切掉的是 z>2 那半，所以水面也只铺到 z=2。
+      const dom = water.dominant()
+      // b5 = 有隔舱、单舱进水：只有一块水面，正好用官方 Water。
+      // b6 = 无隔舱、全船漫水，13 个舱同时有水，仍走轻量方案。
+      const wantOcean = !!dom && (beat.id === 'b5' || (next && next.id === 'b5'))
+      ocean.setVisible(wantOcean)
+      water.setSurfaceHidden(wantOcean)
+      if (wantOcean) {
+        ocean.setExtent({ x0: dom.x0, x1: dom.x1, z0: -11, z1: 2, y: dom.level })
+        ocean.update(dt)
+      }
 
       // 水面折射：先把「不含水体」的场景渲进纹理，水面再按屏幕坐标采样它，
       // 于是水下那层木头是被折射、被水色吸收过的——这是「像水」的关键一步。
