@@ -10,8 +10,8 @@ export const CAMERAS = {
   wide: { position: [88, 34, 108], target: [0, -2, 0], fov: 42 },
   joint: { position: [26, 14, 34], target: [0, 0, 0], fov: 40 },
   // 板缝是 40 个单位长的整段：46 的距离只有约 33 个单位视宽，两端必然出画。
-  // 拉到 70，并把视点左移到 -10，让整段落在文案栏右侧的空白区。
-  seam: { position: [-8, 7, 70], target: [-10, -1, 0], fov: 38 },
+  // 拉到 70，视点居中；左右落点靠 detailGroup 的位移，不在机位上拧。
+  seam: { position: [0, 7, 70], target: [0, -1, 0], fov: 38 },
   cutaway: { position: [80, 70, 110], target: [0, 0, 0], fov: 44 },
   // 漏水屏：从船艏斜上俯看，破口舱落在画面右半，避开左下角文案
   flood: { position: [44, 32, 82], target: [12, -5, 0], fov: 40 },

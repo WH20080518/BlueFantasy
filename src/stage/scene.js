@@ -217,8 +217,7 @@ function addBulkheadCaps(shipGroup, nodes) {
 export async function createStage({ canvas, beats, reducedMotion, base, onModelFail }) {
   // 只在特写镜头里出现的零件：尺寸是给近景定的，远景会穿出船壳
   const ZOOM_ONLY = new Set(['joint_tenon', 'joint_mortise', 'plank_seam', 'nail_set', 'caulk_layer'])
-  // 放大件在画面里的横向落点。文案栏占左侧，居中就会被右边缘切掉，
-  // 所以整组往左挪；b2 的榫卯和 b3 的板缝共用这个值。
+  // 放大件在画面里的横向落点；b2 的榫卯和 b3 的板缝共用这个值。
   const JOINT_OFFSET_X = -6
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -286,7 +285,12 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
         shipGroup.add(g)
         nodes.set(p.name, g)
       }
-      if (Array.isArray(p.assembled)) g.position.fromArray(p.assembled)
+      // parts.json 里的 assembled 是「真模型里该零件的位置」。占位件（钉、捻缝层、
+      // 板缝、榫卯）的几何本来就是按示意图坐标建的，再套一次模型坐标就会整块平移
+      // ——钉和捻缝层被推到板缝右边 14.6 个单位，正是之前看到的"错位"。
+      if (Array.isArray(p.assembled) && !KEEP_PLACEHOLDER.has(p.name)) {
+        g.position.fromArray(p.assembled)
+      }
       if (Array.isArray(p.exploded)) g.userData.exploded = p.exploded
     })
   }
@@ -568,9 +572,12 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       // b4 单舱进水：换成官方 Water 渲染那一块水面，手写水面让位。
       // 水体要跟着剖切面走：相机在 +Z，切掉的是 z>2 那半，所以水面也只铺到 z=2。
       const dom = water.dominant()
-      // b5 = 有隔舱、单舱进水：只有一块水面，正好用官方 Water。
-      // b6 = 无隔舱、全船漫水，13 个舱同时有水，仍走轻量方案。
-      const wantOcean = !!dom && (beat.id === 'b5' || (next && next.id === 'b5'))
+      // 这里曾经把 b5 换成「单块水面」的 ocean.js：结果只有破口那一个舱有水，
+      // 画面里像是船里摆了一个蓝色方块，和「水在船里」的直觉相反。
+      // 手写水面本来就是按舱分格的——每个舱各自一块、各自的水位，
+      // 合起来正好覆盖整个船体内部，隔舱挡水的效果也从水位差上看得到。
+      // 所以 b5 仍用手写水面，ocean.js 保留但默认不启用。
+      const wantOcean = false
       ocean.setVisible(wantOcean)
       water.setSurfaceHidden(wantOcean)
       if (wantOcean) {
