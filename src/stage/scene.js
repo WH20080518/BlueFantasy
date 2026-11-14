@@ -217,6 +217,9 @@ function addBulkheadCaps(shipGroup, nodes) {
 export async function createStage({ canvas, beats, reducedMotion, base, onModelFail }) {
   // 只在特写镜头里出现的零件：尺寸是给近景定的，远景会穿出船壳
   const ZOOM_ONLY = new Set(['joint_tenon', 'joint_mortise', 'plank_seam', 'nail_set', 'caulk_layer'])
+  // 放大件在画面里的横向落点。文案栏占左侧，居中就会被右边缘切掉，
+  // 所以整组往左挪；b2 的榫卯和 b3 的板缝共用这个值。
+  const JOINT_OFFSET_X = -6
   const renderer = new THREE.WebGLRenderer({
     canvas,
     alpha: true,
@@ -264,6 +267,10 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
 
   const built = buildPlaceholders()
   const { shipGroup, detailGroup, shadow, nodes, joint, seam, bulkheads } = built
+  // b3 的板缝/木钉同样整体左移，和 b2 的榫卯保持同一个画面落点
+  seam.seam.position.x += JOINT_OFFSET_X
+  seam.nails.position.x += JOINT_OFFSET_X
+  seam.caulkLayer.position.x += JOINT_OFFSET_X
   scene.add(shipGroup, detailGroup, shadow)
 
   // parts.json（可选）：应用装配/爆炸位
@@ -350,7 +357,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   shipGroup.add(water.mesh)
   // b4（单舱进水）用 three 官方 Water：真实反射 + 折射通道。
   // b5 是 13 舱同淹，每个实例两次全场景渲染撑不住，仍用手写方案。
-  const ocean = createOcean({ renderer, scene, camera })
+  const ocean = createOcean()
   shipGroup.add(ocean.mesh)
   shipGroup.add(ocean.cutFace)
   // 水位由浮力模拟逐帧给出，会在收敛前轻微抖动。
@@ -431,6 +438,9 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       m.clippingPlanes = on ? [cutPlane] : null
       m.needsUpdate = true
     })
+    // b5 用的官方替代水面（自有着色器）也走同一套剖切规则，
+    // 否则它会伸进被切掉的那半空间，看起来像一块被截断的方块
+    ocean.setClipping(on ? [cutPlane] : [])
     cutFill.visible = on
     bilgeLight.intensity = on ? 2.4 : 0
     // 隔舱材质换过实例，flood 里缓存的引用要重新登记，否则淡出作用在旧材质上
@@ -545,8 +555,9 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
         const raw = (Math.max(lt, blend) - 0.12) / 0.5
         const e = reducedMotion() ? 1 : smoothstep(raw)
         const d = joint.assembledX + (joint.explodedX - joint.assembledX) * e
-        joint.tenon.position.x = -d
-        joint.mortise.position.x = d
+        // 整组往左挪一点：文案栏占了画面左侧，居中摆的话右半边会被视口切掉
+        joint.tenon.position.x = -d + JOINT_OFFSET_X
+        joint.mortise.position.x = d + JOINT_OFFSET_X
       }
 
       if (beat.interaction === 'caulk' || (next && next.interaction === 'caulk' && blend > 0)) {
