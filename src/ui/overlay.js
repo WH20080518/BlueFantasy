@@ -412,6 +412,9 @@ let lastInteractionBeat = -1
       const hit = resolveNode(name)
       if (!hit) {
         el.partLabel.hidden = true
+        // 清掉播报记录：不然「悬停已播报的零件 → 悬停未映射节点 → 再回到原零件」
+        // 第三次不会重新朗读，读屏用户会以为没反应
+        announcedPart = null
         return
       }
       const { term, seq } = hit

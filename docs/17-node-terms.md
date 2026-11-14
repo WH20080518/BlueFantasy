@@ -7,7 +7,7 @@
 
 ## 1. 节点覆盖
 
-`parts.json` 白名单有 25 个名字，此前 `nodeTerms` 只映射 12 个，`bulkhead_04..12`、`ship_deck`、`iron_nail`、`caulking_seam`、`treenail` 这 13 个点上去没有任何反应。现在加了家族解析（`resolveNode()`）：
+`parts.json` 共 23 个零件，覆盖 25 个节点名（`nail_set`→`iron_nail`、`caulk_layer`→`caulking_seam` 是同一零件的两种写法）。此前 `nodeTerms` 只映射 12 个，`bulkhead_04..12`、`ship_deck`、`iron_nail`、`caulking_seam`、`treenail` 这些点上去没有任何反应。现在加了家族解析（`resolveNode()`）：
 
 | 节点名 | 词条 | 显示名 | 说明 |
 |---|---|---|---|

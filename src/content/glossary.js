@@ -90,7 +90,9 @@ export const nodeTerms = {
 // 也有 iron_nail / caulking_seam / ship_deck 这种下划线写法，
 // 术语只存一份，编号在界面上补。
 const NODE_FAMILIES = [
-  [/^bulkhead_(\d{2})$/, 'bulkhead'],
+  // 编号允许 1-2 位：现在的 GLB 是 bulkhead_01..12，但导出规则一变
+  // （bulkhead_1）就会静默失配，这里不为格式留死角
+  [/^bulkhead_(\d{1,2})$/, 'bulkhead'],
   [/^ship_deck$/, 'ship-deck'],
   [/^iron_nail$/, 'iron-nail'],
   [/^caulking_seam$/, 'caulking'],
