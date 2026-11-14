@@ -96,7 +96,7 @@ export const beats = [
         '把隔舱板抽掉，同样的破口，水会一路漫过去。',
       ],
       en: [
-        'Water fills a single hold. The ship loses some buoyancy, lists, then settles.',
+        'Water fills a single compartment. The ship loses some buoyancy, lists, then settles.',
         'Take the bulkheads out and the same breach runs the length of the hull.',
       ],
     },

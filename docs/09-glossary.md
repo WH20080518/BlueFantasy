@@ -59,10 +59,12 @@
 | 船板接缝 | plank seam | 直译 | |
 | 搭接 | lap joint | 直译 | |
 | 平接 | butt joint | 直译 | |
-| 三重舷侧板 | three layers of side planking | 解释译 | ⚠️ 待核：F05 目前只有二手来源，**页面暂不使用** |
-| 二重船底板 | double-layer bottom planking | 解释译 | ⚠️ 待核：同上 |
-| 鱼鳞式搭接 | clinker-style overlapping planking | 待核 | ⚠️ 待核：需一手发掘报告，页面暂不使用 |
-| 直角同口 | right-angle scarf joint | 待核 | ⚠️ 待核：全篇最有价值的细节（F06），**核不到一手报告就不写进页面** |
+| 三重舷侧板 | three layers of side planking | 解释译 | ✅ F05a 已核（S1「舷侧板为三重叠合」/ S2） |
+| 二重船底板 | double-layer bottom planking | 解释译 | ✅ F05a 已核（S1「船壳船底板为二重叠合」） |
+| 平接与搭接混用 | butt and lap joints combined | 解释译 | ✅ F05b 已核；**后渚船不写「鱼鳞式」** |
+| 鱼鳞式搭接 | clinker-style overlapping planking | ❌ 不使用 | 该说法属法石古船（S6），不用于后渚船 |
+| 斜直角法榫合 | right-angle scarf joint | 解释译 | ✅ F06a 已核（S2）；**「直角同口」查无出处，禁止使用** |
+| 保寿孔 | longevity hole（英文译法待核） | 待核 | ✅ F06b 有来源；英文名等母语者确认后再上线 |
 
 ## 2. 材料与工艺词
 
@@ -117,5 +119,6 @@
 - [x] 统一口径落表：第 0.1 节用词对照 + 第 0.2 节文体约定
 - [ ] 用《中国科学技术史·交通卷》《中国造船史》等核对结构词英文
 - [ ] 泉州海外交通史博物馆展陈英文说明拍照留档，作为译法依据
-- [ ] 回一手发掘报告核对三重舷侧板 / 二重船底板 / 直角同口（F05、F06）
+- [x] F05 / F06 回机构来源核对（2026-11-15）：F05a 可用，F05b 与「直角同口」弃用，改用斜直角法与保寿孔
+- [ ] 保寿孔英文译法（longevity hole / qixing banyue）交母语者确认
 - [ ] 英文母语者通读一遍 beat 文案，重点看 `treenail`、`caulking` 是否自然（11-15）
