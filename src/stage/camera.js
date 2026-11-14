@@ -9,9 +9,14 @@ const _tB = new THREE.Vector3()
 export const CAMERAS = {
   wide: { position: [88, 34, 108], target: [0, -2, 0], fov: 42 },
   joint: { position: [26, 14, 34], target: [0, 0, 0], fov: 40 },
-  seam: { position: [2, 6, 46], target: [0, -1, 0], fov: 40 },
+  // 板缝是 40 个单位长的整段：46 的距离只有约 33 个单位视宽，两端必然出画。
+  // 拉到 70，视点居中；左右落点靠 detailGroup 的位移，不在机位上拧。
+  seam: { position: [0, 7, 70], target: [0, -1, 0], fov: 38 },
   cutaway: { position: [80, 70, 110], target: [0, 0, 0], fov: 44 },
-  flood: { position: [20, 24, 148], target: [0, -2, 0], fov: 44 },
+  // 漏水屏：从船艏斜上俯看，破口舱落在画面右半，避开左下角文案
+  // 原来 y=32 是俯视：只看得到水面，水体的侧面只剩一条几像素的缝，
+  // 侧面纹理再好也看不见。压到 16 平视进舱口，断面才是一整面墙。
+  flood: { position: [44, 16, 78], target: [12, -3, 0], fov: 40 },
   terms: { position: [96, 30, 96], target: [0, 0, 0], fov: 44 },
   away: { position: [150, 64, 170], target: [0, 2, 0], fov: 50 },
 }

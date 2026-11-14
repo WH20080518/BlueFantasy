@@ -5,7 +5,19 @@ import { CameraRig, CAMERAS } from './camera.js'
 import { Parts } from './parts.js'
 import { createFlood } from '../interactions/flood.js'
 import { createCaulk } from '../interactions/caulk.js'
+
+// 这些零件被交互模块持有网格引用（caulk 的上下板、flood 的隔舱材质、joint 的爆炸件），
+// 所以不用 GLB 里的同名网格替换，保留代码建的占位几何。
+// 它们同时也是「按示意图坐标摆放」的：parts.json 里的 assembled 是真实模型的位置，
+// 套到占位几何上会整块平移（钉和捻缝层会被推开 14.6 个单位），因此一并跳过。
+// 这个集合必须在模块作用域：bindRealMeshes 和 createStage 两处都要用。
+const KEEP_PLACEHOLDER = new Set([
+  'plank_seam', 'nail_set', 'caulk_layer',
+  'joint_tenon', 'joint_mortise',
+])
 import { loadShip } from './loader.js'
+import { createWater } from './water.js'
+import { createOcean } from './ocean.js'
 
 // three 场景：渲染循环、resize（DPR 上限 2）、半球光 + 方向光（无阴影贴图）。
 
@@ -68,12 +80,6 @@ function sharedMaterial(color) {
 // - 子物体自身位移归零，单位按包围盒判断（>100 视为毫米，整树 0.001）
 // 返回成功接上的零件数。
 function bindRealMeshes(gltf, nodes, { unit } = {}) {
-  // 这些零件被交互模块持有网格引用（caulk 的上下板、flood 的隔舱材质、joint 的爆炸件）。
-  // 直接替换会让 refs 指向已移除的网格，表现为「点了没反应」。P2 阶段先保留占位。
-  const KEEP_PLACEHOLDER = new Set([
-    'plank_seam', 'nail_set', 'caulk_layer',
-    'joint_tenon', 'joint_mortise',
-  ])
   const root = gltf?.scene ?? gltf?.scenes?.[0]
   if (!root) return 0
 
@@ -169,7 +175,54 @@ function clampedDPR() {
   return Math.min(window.devicePixelRatio || 1, 2)
 }
 
+// 隔舱板是 GLB 里的薄板：顶边一条直棱，在暗舱里读起来像一叠卡片。
+// 给每道板补一条压顶木条（真实隔舱都有），边缘有了厚度和转折，就不突兀了。
+function addBulkheadCaps(shipGroup, nodes) {
+  let added = 0
+  for (let i = 1; i <= 12; i += 1) {
+    const name = `bulkhead_${String(i).padStart(2, '0')}`
+    const g = nodes.get(name)
+    if (!g || g.userData.capped) continue
+    g.updateWorldMatrix(true, true)
+    // 用局部包围盒：压顶条必须挂在这道隔舱板自己身上，
+    // 否则它不受 beat 可见性控制——b2 里就会有一排木条浮在半空。
+    const box = new THREE.Box3().setFromObject(g)
+    box.applyMatrix4(new THREE.Matrix4().copy(g.matrixWorld).invert())
+    if (box.isEmpty()) continue
+    const size = box.getSize(new THREE.Vector3())
+
+    let baseMat = null
+    g.traverse((o) => {
+      if (!baseMat && o.isMesh && o.material) {
+        baseMat = Array.isArray(o.material) ? o.material[0] : o.material
+      }
+    })
+    const mat = baseMat ? baseMat.clone() : new THREE.MeshStandardMaterial({ color: 0x6b4b33 })
+    mat.color = mat.color.clone().multiplyScalar(0.82)
+    mat.roughness = 0.9
+
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(size.x * 0.98, 0.34, size.z * 1.04), mat)
+    cap.name = `${name}_cap`
+    cap.position.set(
+      (box.min.x + box.max.x) / 2,
+      box.max.y + 0.1,
+      (box.min.z + box.max.z) / 2,
+    )
+    cap.castShadow = false
+    cap.receiveShadow = false
+    // 挂在隔舱板组下：跟着 beat 一起显隐，也跟着剖切面一起被裁
+    g.add(cap)
+    g.userData.capped = true
+    added += 1
+  }
+  return added
+}
+
 export async function createStage({ canvas, beats, reducedMotion, base, onModelFail }) {
+  // 只在特写镜头里出现的零件：尺寸是给近景定的，远景会穿出船壳
+  const ZOOM_ONLY = new Set(['joint_tenon', 'joint_mortise', 'plank_seam', 'nail_set', 'caulk_layer'])
+  // 放大件在画面里的横向落点；b2 的榫卯和 b3 的板缝共用这个值。
+  const JOINT_OFFSET_X = -6
   const renderer = new THREE.WebGLRenderer({
     canvas,
     alpha: true,
@@ -182,6 +235,8 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.toneMappingExposure = 0.95
   renderer.outputColorSpace = THREE.SRGBColorSpace
+  // 剖切用裁剪平面：b4/b5 沿船中线切掉靠近相机的一半，露出内壁与十二道隔舱板
+  renderer.localClippingEnabled = true
 
   const scene = new THREE.Scene()
   scene.fog = new THREE.Fog(0x3a2a20, 220, 560)
@@ -200,8 +255,25 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   sun.position.set(60, 80, 40)
   scene.add(sun)
 
+  // 剖切时补一盏正面光：外壳被切掉后，船内朝 +Z 的内壁与隔舱板几乎没有直接受光，
+  // 只在 b4/b5 打开，其余屏关闭，避免把整船照平。
+  const cutFill = new THREE.DirectionalLight(0xffe9cf, 0.85)
+  cutFill.position.set(40, 55, 150)
+  cutFill.visible = false
+  scene.add(cutFill)
+
+  // 舱内点光：剖开之后舱里几乎没有任何直接照明，
+  // 水面反射到的是甲板背面（全黑），看起来就是个洞。补一盏悬在舱口上方的灯。
+  const bilgeLight = new THREE.PointLight(0xbfd8d2, 0, 90, 1.6)
+  bilgeLight.position.set(14, 14, 6)
+  scene.add(bilgeLight)
+
   const built = buildPlaceholders()
-  const { shipGroup, detailGroup, shadow, nodes, joint, seam, water, bulkheads } = built
+  const { shipGroup, detailGroup, shadow, nodes, joint, seam, bulkheads } = built
+  // 整组（榫卯、板缝、木钉、捻缝层）统一左移：
+  // 挂在父亲上做偏移，而不是逐个改子对象——caulk 交互每帧会重写木钉位置，
+  // 在子对象上 += 会被它覆盖掉。
+  detailGroup.position.x = JOINT_OFFSET_X
   scene.add(shipGroup, detailGroup, shadow)
 
   // parts.json（可选）：应用装配/爆炸位
@@ -217,7 +289,12 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
         shipGroup.add(g)
         nodes.set(p.name, g)
       }
-      if (Array.isArray(p.assembled)) g.position.fromArray(p.assembled)
+      // parts.json 里的 assembled 是「真模型里该零件的位置」。占位件（钉、捻缝层、
+      // 板缝、榫卯）的几何本来就是按示意图坐标建的，再套一次模型坐标就会整块平移
+      // ——钉和捻缝层被推到板缝右边 14.6 个单位，正是之前看到的"错位"。
+      if (Array.isArray(p.assembled) && !KEEP_PLACEHOLDER.has(p.name)) {
+        g.position.fromArray(p.assembled)
+      }
       if (Array.isArray(p.exploded)) g.userData.exploded = p.exploded
     })
   }
@@ -243,22 +320,158 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
           if (g) list.push(g)
         }
         flood.rebindBulkheads(list)
+        // 用真模型的隔舱位置决定分舱边界，水面格数才跟船体对得上
+        const xs = []
+        const box = new THREE.Box3()
+        const center = new THREE.Vector3()
+        list.forEach((g) => {
+          box.setFromObject(g)
+          if (box.isEmpty()) return
+          box.getCenter(center)
+          xs.push(center.x)
+        })
+        if (xs.length >= 2) {
+          xs.sort((a, b) => a - b)
+          const edgeList = [-47, ...xs, 47]
+          flood.setLayout(edgeList)
+          console.info(`[stage] 水面分舱 ${edgeList.length - 1} 格`)
+        }
         console.info(`[stage] GLB 已接入 ${bound} 个零件，隔舱 ${list.length} 道`)
+        addBulkheadCaps(shipGroup, nodes)
+        // 深链直接落在 b4/b5 时，模型可能晚于剖切开关绑定：
+        // 旧占位网格的克隆材质已经随 group.clear() 脱离场景，新网格却还没有裁剪面，
+        // 而 setCutaway 的 guard 会把这个状态一直挡住，所以这里强制重挂一次。
+        if (cutOn) reapplyCutaway()
       }
     })
     .catch((err) => console.warn('[stage] 接入 GLB 失败：', err))
 
   // DEV 调试钩子：浏览器里可直接读场景状态
   if (import.meta.env.DEV) {
-    window.__bf = { scene, camera, renderer }
+    // cutSwaps / cutOn 在下面才初始化，这里必须用 getter，直接取值会撞 TDZ
+    window.__bf = {
+      scene, camera, renderer, nodes, setCutaway, reapplyCutaway,
+      get cutOn() { return cutOn },
+      get cutSwaps() { return cutSwaps },
+      // 下面这些在钩子之后才创建，统一用 getter
+      get flood() { return flood },
+      get water() { return water },
+    }
   }
 
   const parts = new Parts(nodes)
-  const flood = createFlood({ ship: shipGroup, compWater: water.comp, fullWater: water.full, bulkheads, water }, reducedMotion)
+  // 水面：一整片按舱分格的高度场，水位由 flood 的每个舱控制
+  const water = createWater({ floorY: -11.6, renderer, scene, camera })
+  shipGroup.add(water.mesh)
+  // b4（单舱进水）用 three 官方 Water：真实反射 + 折射通道。
+  // b5 是 13 舱同淹，每个实例两次全场景渲染撑不住，仍用手写方案。
+  const ocean = createOcean()
+  shipGroup.add(ocean.mesh)
+  shipGroup.add(ocean.cutFace)
+  // 水位由浮力模拟逐帧给出，会在收敛前轻微抖动。
+  // 直接拿它重建水面 → 法线每帧都变 → 高光闪成一片。这里做一次平滑，
+  // 并且只有变化超过 0.02 才重建几何。
+  let oceanLevel = null
+  let oceanBuilt = null
+  // 折射用的「无水场景」：半分辨率就够了——水下本来就被水色压暗，
+  // 高分辨率只是白花一次全场景绘制的开销。
+  const waterSceneRT = new THREE.WebGLRenderTarget(512, 288, {
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter,
+    depthBuffer: true,
+  })
+  const flood = createFlood({ ship: shipGroup, water, bulkheads, floorY: -11.6, topY: 5.2 })
   const caulk = createCaulk(
     { upper: seam.refs.upper, lower: seam.refs.lower, marker: seam.refs.marker, caulk: seam.refs.caulk, nails: seam.nails, openY: seam.refs.openY, closedY: seam.refs.closedY },
     reducedMotion,
   )
+
+  // 剖切：沿船中线平面（法线 -Z）裁掉靠近相机的一半外壳与隔舱，
+  // 露出内壁材质与完整的舱室分隔，替代原来整壳半透明的糊影。
+  // GLB 里材质是共享实例（隔舱与 caulk_layer 同一材质），必须克隆后再挂裁剪面，
+  // 否则整艘船的零件都会被切掉；切完还原并重建 flood 的材质引用。
+  const cutPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 2)
+  const CUT_NODES = ['hull_shell']
+  for (let i = 1; i <= 12; i += 1) CUT_NODES.push(`bulkhead_${String(i).padStart(2, '0')}`)
+  const cutSwaps = new Map() // mesh -> 原材质
+  let cutOn = false
+
+  function bulkheadGroups() {
+    const list = []
+    for (let i = 1; i <= 12; i += 1) {
+      const g = nodes.get(`bulkhead_${String(i).padStart(2, '0')}`)
+      if (g) list.push(g)
+    }
+    return list
+  }
+
+  function swapMesh(obj) {
+    if (!obj || !obj.isMesh || !obj.material) return
+    if (cutOn) {
+      if (cutSwaps.has(obj)) return
+      const orig = obj.material
+      const mat = Array.isArray(orig) ? orig.map((m) => m.clone()) : orig.clone()
+      cutSwaps.set(obj, orig)
+      obj.material = mat
+      const list = Array.isArray(mat) ? mat : [mat]
+      list.forEach((m) => {
+        m.clippingPlanes = [cutPlane]
+        m.clipShadows = true
+        m.needsUpdate = true
+      })
+    } else if (cutSwaps.has(obj)) {
+      const clone = obj.material
+      obj.material = cutSwaps.get(obj)
+      cutSwaps.delete(obj)
+      const list = Array.isArray(clone) ? clone : [clone]
+      list.forEach((m) => m.dispose())
+    }
+  }
+
+  function setCutaway(on) {
+    if (on === cutOn) return
+    cutOn = on
+    // 剖切面切的是「靠近观众的那一半」。现在 b4/b5 的机位都在 +Z 一侧，
+    // 法线取 -Z；但机位预设是可改的，这里按相机所在侧翻法线，
+    // 免得哪天换了机位或者加了轨道旋转，剖开的是背面。
+    if (on) {
+      const dir = camera.position.z >= 0 ? -1 : 1
+      cutPlane.normal.set(0, 0, dir)
+      cutPlane.constant = dir < 0 ? 2 : -2
+    }
+    CUT_NODES.forEach((nm) => nodes.get(nm)?.traverse(swapMesh))
+    // 水面/水体横贯整个船宽，不一起裁就会从切开的半边溢出去。
+    // 这两份材质是水独占的，直接挂裁剪面即可（它们没有和别的零件共享实例）
+    water.materials.forEach((m) => {
+      m.clippingPlanes = on ? [cutPlane] : null
+      m.needsUpdate = true
+    })
+    // b5 用的官方替代水面（自有着色器）也走同一套剖切规则，
+    // 否则它会伸进被切掉的那半空间，看起来像一块被截断的方块
+    ocean.setClipping(on ? [cutPlane] : [])
+    cutFill.visible = on
+    bilgeLight.intensity = on ? 2.4 : 0
+    // 隔舱材质换过实例，flood 里缓存的引用要重新登记，否则淡出作用在旧材质上
+    flood.rebindBulkheads(bulkheadGroups())
+  }
+
+  // 已脱离场景的占位网格：还原无从谈起，直接 dispose 掉挂在它们上面的克隆材质
+  function pruneCutSwaps() {
+    cutSwaps.forEach((orig, mesh) => {
+      if (mesh.parent) return
+      const clone = mesh.material
+      const list = Array.isArray(clone) ? clone : [clone]
+      list.forEach((m) => m.dispose && m.dispose())
+      cutSwaps.delete(mesh)
+      void orig
+    })
+  }
+
+  function reapplyCutaway() {
+    pruneCutSwaps()
+    cutOn = false // 绕过 guard，让下一行对当前这批网格重新克隆并挂裁剪面
+    setCutaway(true)
+  }
 
   let beatIndex = 0
   let spin = 0
@@ -273,6 +486,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
     const w = canvas.clientWidth || 1
     const h = canvas.clientHeight || 1
     renderer.setSize(w, h, false)
+    waterSceneRT.setSize(Math.max(1, Math.round(w * 0.6)), Math.max(1, Math.round(h * 0.6)))
     camera.aspect = w / h
     camera.updateProjectionMatrix()
   }
@@ -312,21 +526,28 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       // 可见性：相机混合期间显示两个 beat 的并集
       visibleSet.clear()
       nodeSetFor(i).forEach((n) => visibleSet.add(n))
-      if (blend > 0 && next) next.stage.nodes.forEach((n) => visibleSet.add(n))
+      if (blend > 0 && next) {
+        // 榫卯/接缝这几件是「放大看」的示意件，尺寸按镜头距离定的。
+        // 相机还在整船视角时就把它们并进来，会从船壳里穿出来——
+        // 所以在混合过半之前先不显示，等镜头拉近了再出现。
+        // 0.75 而不是 0.5：b2 的榫卯和 b3 的木钉都是放大件，
+        // 在过渡中段同时出现会像一堆东西错位地插在一起。
+        const early = blend > 0.75
+        next.stage.nodes.forEach((n) => {
+          if (!early && ZOOM_ONLY.has(n)) return
+          visibleSet.add(n)
+        })
+        // 反过来：已经要离开这一屏时，本屏的放大件也提前收掉
+        if (blend > 0.6) {
+          beat.stage.nodes.forEach((n) => {
+            if (ZOOM_ONLY.has(n)) visibleSet.delete(n)
+          })
+        }
+      }
       parts.setVisible(visibleSet)
 
-      // 剖舱与漏水两屏需要看进船体：有真模型时把外壳调透明，其余屏恢复不透明
-      const seeThrough = beat.id === 'b4' || beat.id === 'b5'
-      for (const nm of ['hull_shell', 'ship_deck']) {
-        const node = nodes.get(nm)
-        if (!node) continue
-        node.traverse((obj) => {
-          if (!obj.isMesh || !obj.material) return
-          obj.material.transparent = seeThrough
-          obj.material.opacity = seeThrough ? 0.55 : 1
-          obj.material.depthWrite = !seeThrough
-        })
-      }
+      // 剖舱与漏水两屏切掉近侧一半船体，其余屏恢复完整船壳
+      setCutaway(beat.id === 'b4' || beat.id === 'b5')
 
       // 相机
       rig.update(beat.stage.camera, next ? next.stage.camera : null, blend, lt, dt)
@@ -342,14 +563,74 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
         const raw = (Math.max(lt, blend) - 0.12) / 0.5
         const e = reducedMotion() ? 1 : smoothstep(raw)
         const d = joint.assembledX + (joint.explodedX - joint.assembledX) * e
-        joint.tenon.position.x = -d
-        joint.mortise.position.x = d
+        // 整组往左挪一点：文案栏占了画面左侧，居中摆的话右半边会被视口切掉
+        joint.tenon.position.x = -d + JOINT_OFFSET_X
+        joint.mortise.position.x = d + JOINT_OFFSET_X
       }
 
       if (beat.interaction === 'caulk' || (next && next.interaction === 'caulk' && blend > 0)) {
         caulk.update(dt, lt)
       }
       flood.update(dt)
+
+      // b4 单舱进水：换成官方 Water 渲染那一块水面，手写水面让位。
+      // 水体要跟着剖切面走：相机在 +Z，切掉的是 z>2 那半，所以水面也只铺到 z=2。
+      const dom = water.dominant()
+      // 这里曾经把 b5 换成「单块水面」的 ocean.js：结果只有破口那一个舱有水，
+      // 画面里像是船里摆了一个蓝色方块，和「水在船里」的直觉相反。
+      // 手写水面本来就是按舱分格的——每个舱各自一块、各自的水位，
+      // 合起来正好覆盖整个船体内部，隔舱挡水的效果也从水位差上看得到。
+      // 所以 b5 仍用手写水面，ocean.js 保留但默认不启用。
+      const wantOcean = false
+      ocean.setVisible(wantOcean)
+      water.setSurfaceHidden(wantOcean)
+      if (wantOcean) {
+        oceanLevel = oceanLevel == null
+          ? dom.level
+          : oceanLevel + (dom.level - oceanLevel) * Math.min(1, dt * 6)
+        // 逐点量船宽：沿 +Z 打射线穿船壳，命中点就是那一处的水线半宽。
+        // 不这样做的话，水面就是一块矩形板，从弧形的船壳两侧戳出去，
+        // 看起来像被切掉一截的方块，而不是躺在舱里的水。
+        if (oceanBuilt == null || Math.abs(oceanLevel - oceanBuilt) > 0.02) {
+          const hull = nodes.get('hull_shell')
+          const hullMeshes = []
+          if (hull) hull.traverse((o) => { if (o.isMesh) hullMeshes.push(o) })
+          const ray = new THREE.Raycaster()
+          const dir = new THREE.Vector3(0, 0, 1)
+          const halfWidth = (x) => {
+            if (!hullMeshes.length) return 11
+            ray.set(new THREE.Vector3(x, oceanLevel, 0), dir)
+            const hits = ray.intersectObjects(hullMeshes, false)
+            let w = 0
+            for (const h of hits) if (h.point.z > w) w = h.point.z
+            // 船壳两侧各有一层（内外），取最外的那个命中；没打中就退回窄一点的值
+            return w > 0.5 ? w - 0.15 : 11
+          }
+          ocean.setShape({ x0: dom.x0, x1: dom.x1, y: oceanLevel, halfWidth, zCut: 2 })
+          oceanBuilt = oceanLevel
+        }
+        ocean.update(dt)
+      }
+
+      // 水面折射：先把「不含水体」的场景渲进纹理，水面再按屏幕坐标采样它，
+      // 于是水下那层木头是被折射、被水色吸收过的——这是「像水」的关键一步。
+      // 只在有水面的两屏多画一次，其余屏不受影响。
+      if (water.mesh.visible) {
+        water.mesh.visible = false
+        const prevRT = renderer.getRenderTarget()
+        renderer.setRenderTarget(waterSceneRT)
+        renderer.clear()
+        renderer.render(scene, camera)
+        renderer.setRenderTarget(prevRT)
+        water.mesh.visible = true
+        water.setSceneTexture(
+          waterSceneRT.texture,
+          renderer.domElement.width || 1,
+          renderer.domElement.height || 1,
+        )
+      } else {
+        water.setSceneTexture(null)
+      }
 
       renderer.render(scene, camera)
 
