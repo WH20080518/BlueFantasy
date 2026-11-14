@@ -401,6 +401,17 @@ if (!no3d && webglAvailable()) {
       stage3d = stage
       stage3d.resize()
       if (currentBeat >= 0) stage3d.enterBeat(currentBeat)
+      // 只在 dev 暴露调试句柄：拾取/可见性出问题时可以直接在控制台查，
+      // 不用靠截图猜。
+      if (import.meta.env.DEV) {
+        window.__bf = {
+          stage,
+          beats,
+          get beat() {
+            return beats[currentBeat]?.id ?? null
+          },
+        }
+      }
     })
     .catch((err) => {
       // 3D 加载失败：保留文案与 SVG，不白屏；并锁死 3D 选项

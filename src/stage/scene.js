@@ -5,6 +5,16 @@ import { CameraRig, CAMERAS } from './camera.js'
 import { Parts } from './parts.js'
 import { createFlood } from '../interactions/flood.js'
 import { createCaulk } from '../interactions/caulk.js'
+
+// 这些零件被交互模块持有网格引用（caulk 的上下板、flood 的隔舱材质、joint 的爆炸件），
+// 所以不用 GLB 里的同名网格替换，保留代码建的占位几何。
+// 它们同时也是「按示意图坐标摆放」的：parts.json 里的 assembled 是真实模型的位置，
+// 套到占位几何上会整块平移（钉和捻缝层会被推开 14.6 个单位），因此一并跳过。
+// 这个集合必须在模块作用域：bindRealMeshes 和 createStage 两处都要用。
+const KEEP_PLACEHOLDER = new Set([
+  'plank_seam', 'nail_set', 'caulk_layer',
+  'joint_tenon', 'joint_mortise',
+])
 import { loadShip } from './loader.js'
 import { createWater } from './water.js'
 import { createOcean } from './ocean.js'
@@ -70,12 +80,6 @@ function sharedMaterial(color) {
 // - 子物体自身位移归零，单位按包围盒判断（>100 视为毫米，整树 0.001）
 // 返回成功接上的零件数。
 function bindRealMeshes(gltf, nodes, { unit } = {}) {
-  // 这些零件被交互模块持有网格引用（caulk 的上下板、flood 的隔舱材质、joint 的爆炸件）。
-  // 直接替换会让 refs 指向已移除的网格，表现为「点了没反应」。P2 阶段先保留占位。
-  const KEEP_PLACEHOLDER = new Set([
-    'plank_seam', 'nail_set', 'caulk_layer',
-    'joint_tenon', 'joint_mortise',
-  ])
   const root = gltf?.scene ?? gltf?.scenes?.[0]
   if (!root) return 0
 
