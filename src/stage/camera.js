@@ -14,7 +14,9 @@ export const CAMERAS = {
   seam: { position: [0, 7, 70], target: [0, -1, 0], fov: 38 },
   cutaway: { position: [80, 70, 110], target: [0, 0, 0], fov: 44 },
   // 漏水屏：从船艏斜上俯看，破口舱落在画面右半，避开左下角文案
-  flood: { position: [44, 32, 82], target: [12, -5, 0], fov: 40 },
+  // 原来 y=32 是俯视：只看得到水面，水体的侧面只剩一条几像素的缝，
+  // 侧面纹理再好也看不见。压到 16 平视进舱口，断面才是一整面墙。
+  flood: { position: [44, 16, 78], target: [12, -3, 0], fov: 40 },
   terms: { position: [96, 30, 96], target: [0, 0, 0], fov: 44 },
   away: { position: [150, 64, 170], target: [0, 2, 0], fov: 50 },
 }

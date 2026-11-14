@@ -278,10 +278,19 @@ void main() {
     col = mix(uShallow * 0.70, uDeep * 0.42, d);
   }
 
-  // 竖向浑浊带 + 细颗粒：侧面有东西在动，才不会读成一块亚克力
-  float band = 0.5 + 0.5 * sin(vWorldPos.y * 5.0 - uTime * 1.1 + sin(vWorldPos.x * 1.9) * 1.6);
-  float grain = texture2D(uRipple, vec2(vWorldPos.x * 0.05, vWorldPos.y * 0.09 + uTime * 0.02)).x;
-  col *= 0.90 + 0.10 * band + 0.06 * grain;
+  // 侧面的「水感」全靠这一层：按世界坐标采样法线贴图，两层反向滚动。
+  // 之前的 0.10 正弦只有 10% 的明暗差，在暗舱里等于没有——现在是 30%，
+  // 并且叠了一层焦散状的高光带（水下光斑打在内壁上的那种纹路）。
+  vec2 sp = vec2(vWorldPos.x * 0.16, vWorldPos.y * 0.34);
+  float n1 = texture2D(uRipple, sp + vec2(uTime * 0.035, -uTime * 0.05)).x;
+  float n2 = texture2D(uRipple, sp * 2.7 + vec2(-uTime * 0.021, -uTime * 0.068)).y;
+  float tex = n1 * 0.6 + n2 * 0.4;
+  col *= 0.82 + 0.34 * tex;
+  float caustic = smoothstep(0.58, 0.94, tex);
+  col += vec3(0.20, 0.32, 0.32) * caustic * (1.0 - d * 0.55);
+
+  // 水线下方一条亮带：水面把光折下来，紧贴水线那一圈总是最亮的
+  col += vec3(0.10, 0.15, 0.15) * smoothstep(0.72, 1.0, vTop) * (0.6 + 0.4 * tex);
 
   // 靠近水线处散射更亮
   col += uShallow * 0.10 * pow(vTop, 6.0);
@@ -291,7 +300,7 @@ void main() {
   col += vec3(0.35, 0.5, 0.5) * spec * 0.25;
 
   float alpha = mix(0.66, 0.96, d) * uOpacity;
-  gl_FragColor = vec4(col, alpha * uOpacity);
+  gl_FragColor = vec4(col, alpha);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }
