@@ -188,7 +188,10 @@ void main() {
     below = raw * absorb + body * 0.12;
   }
 
-  vec3 col = mix(below, sky, clamp(0.08 + fres * 0.88, 0.0, 1.0));
+  // 反射权重按菲涅尔来，但起点必须很低：水的 F0 只有 0.02，
+  // 垂直看过去 96% 以上是「透过去的水下」，不是镜面。
+  // 之前 0.08 + fres*0.88 反射占比过半，物理上那就是块玻璃。
+  vec3 col = mix(below, sky, clamp(0.03 + fres * 0.55, 0.0, 0.9));
 
   // 太阳高光
   vec3 L = normalize(uSunDir);
