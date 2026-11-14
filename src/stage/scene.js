@@ -353,6 +353,11 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   const ocean = createOcean({ renderer, scene, camera })
   shipGroup.add(ocean.mesh)
   shipGroup.add(ocean.cutFace)
+  // 水位由浮力模拟逐帧给出，会在收敛前轻微抖动。
+  // 直接拿它重建水面 → 法线每帧都变 → 高光闪成一片。这里做一次平滑，
+  // 并且只有变化超过 0.02 才重建几何。
+  let oceanLevel = null
+  let oceanBuilt = null
   // 折射用的「无水场景」：半分辨率就够了——水下本来就被水色压暗，
   // 高分辨率只是白花一次全场景绘制的开销。
   const waterSceneRT = new THREE.WebGLRenderTarget(512, 288, {
@@ -507,11 +512,19 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
         // 榫卯/接缝这几件是「放大看」的示意件，尺寸按镜头距离定的。
         // 相机还在整船视角时就把它们并进来，会从船壳里穿出来——
         // 所以在混合过半之前先不显示，等镜头拉近了再出现。
-        const early = blend > 0.5
+        // 0.75 而不是 0.5：b2 的榫卯和 b3 的木钉都是放大件，
+        // 在过渡中段同时出现会像一堆东西错位地插在一起。
+        const early = blend > 0.75
         next.stage.nodes.forEach((n) => {
           if (!early && ZOOM_ONLY.has(n)) return
           visibleSet.add(n)
         })
+        // 反过来：已经要离开这一屏时，本屏的放大件也提前收掉
+        if (blend > 0.6) {
+          beat.stage.nodes.forEach((n) => {
+            if (ZOOM_ONLY.has(n)) visibleSet.delete(n)
+          })
+        }
       }
       parts.setVisible(visibleSet)
 
@@ -550,24 +563,30 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       ocean.setVisible(wantOcean)
       water.setSurfaceHidden(wantOcean)
       if (wantOcean) {
+        oceanLevel = oceanLevel == null
+          ? dom.level
+          : oceanLevel + (dom.level - oceanLevel) * Math.min(1, dt * 6)
         // 逐点量船宽：沿 +Z 打射线穿船壳，命中点就是那一处的水线半宽。
         // 不这样做的话，水面就是一块矩形板，从弧形的船壳两侧戳出去，
         // 看起来像被切掉一截的方块，而不是躺在舱里的水。
-        const hull = nodes.get('hull_shell')
-        const hullMeshes = []
-        if (hull) hull.traverse((o) => { if (o.isMesh) hullMeshes.push(o) })
-        const ray = new THREE.Raycaster()
-        const dir = new THREE.Vector3(0, 0, 1)
-        const halfWidth = (x) => {
-          if (!hullMeshes.length) return 11
-          ray.set(new THREE.Vector3(x, dom.level, 0), dir)
-          const hits = ray.intersectObjects(hullMeshes, false)
-          let w = 0
-          for (const h of hits) if (h.point.z > w) w = h.point.z
-          // 船壳两侧各有一层（内外），取最外的那个命中；没打中就退回窄一点的值
-          return w > 0.5 ? w - 0.15 : 11
+        if (oceanBuilt == null || Math.abs(oceanLevel - oceanBuilt) > 0.02) {
+          const hull = nodes.get('hull_shell')
+          const hullMeshes = []
+          if (hull) hull.traverse((o) => { if (o.isMesh) hullMeshes.push(o) })
+          const ray = new THREE.Raycaster()
+          const dir = new THREE.Vector3(0, 0, 1)
+          const halfWidth = (x) => {
+            if (!hullMeshes.length) return 11
+            ray.set(new THREE.Vector3(x, oceanLevel, 0), dir)
+            const hits = ray.intersectObjects(hullMeshes, false)
+            let w = 0
+            for (const h of hits) if (h.point.z > w) w = h.point.z
+            // 船壳两侧各有一层（内外），取最外的那个命中；没打中就退回窄一点的值
+            return w > 0.5 ? w - 0.15 : 11
+          }
+          ocean.setShape({ x0: dom.x0, x1: dom.x1, y: oceanLevel, halfWidth, zCut: 2 })
+          oceanBuilt = oceanLevel
         }
-        ocean.setShape({ x0: dom.x0, x1: dom.x1, y: dom.level, halfWidth, zCut: 2 })
         ocean.update(dt)
       }
 

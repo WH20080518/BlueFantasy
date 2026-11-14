@@ -74,7 +74,7 @@ export function createOcean({ renderer, scene, camera, sunDir = new THREE.Vector
     waterNormals: waterNormals(),
     sunDirection: sunDir.clone().normalize(),
     sunColor: 0xfff2e0,
-    waterColor: 0x0d3440,
+    waterColor: 0x1b5e6b,
     distortionScale: 3.6,
     fog: !!scene.fog,
   })
@@ -92,9 +92,14 @@ export function createOcean({ renderer, scene, camera, sunDir = new THREE.Vector
     transparent: true,
     depthWrite: false,
     side: THREE.DoubleSide,
+    // 断面和它是「贴在切口上的一层标签」，不参与深度竞争。
+    // 顶边只要还有一点点重叠就会闪，polygonOffset 让它稳定压在水面前面。
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -4,
     uniforms: {
-      uTop: { value: new THREE.Color(0x1d4e57) },
-      uBottom: { value: new THREE.Color(0x04161e) },
+      uTop: { value: new THREE.Color(0x2f7b85) },
+      uBottom: { value: new THREE.Color(0x08222b) },
       uTime: { value: 0 },
     },
     vertexShader: /* glsl */ `
@@ -163,9 +168,9 @@ export function createOcean({ renderer, scene, camera, sunDir = new THREE.Vector
     geo.computeBoundingSphere()
 
     // 断面：从舱底铺到水面下 0.06（共面会 z-fighting，表现为闪烁）
-    const depth = Math.max(0.1, y - 0.06 - (-11.6))
+    const depth = Math.max(0.1, y - 0.3 - (-11.6))
     cutFace.scale.set(Math.max(0.1, x1 - x0), depth, 1)
-    cutFace.position.set((x0 + x1) / 2, y - 0.06 - depth / 2, zCut - 0.02)
+    cutFace.position.set((x0 + x1) / 2, y - 0.3 - depth / 2, zCut - 0.02)
     cutMode = cutAny
   }
 
