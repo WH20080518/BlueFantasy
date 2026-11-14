@@ -197,25 +197,99 @@ function buildHullShell() {
 }
 
 function buildJoint() {
-  // 装配态：榫头组在 x=-5，卯眼组在 x=+5；爆炸沿 X 分离
-  const tenonBeam = new THREE.Mesh(new THREE.BoxGeometry(13, 5, 5), std(PALETTE.wood))
-  tenonBeam.position.set(-6.5, 0, 0)
-  const tongue = new THREE.Mesh(new THREE.BoxGeometry(6, 2.6, 2.6), std(PALETTE.deepWood))
-  tongue.position.set(3, 0, 0)
+  // 榫卯示意（b2 爆炸图）。
+  // 这套几何不是船上的零件，是放大到可读尺寸的「结点示意」——所以不能用 GLB 里的
+  // joint_tenon/joint_mortise（那两个在模型里只有 2 个单位大，放进来等于看不见）。
+  // 但示意也得是真榫卯：卯眼必须是真开孔，榫舌得真能插进去，装配态是合上的。
+  //
+  // 坐标约定：接合面在 x=0。榫头组往 -X 走，卯眼组往 +X 走；
+  // 装配态 d=0（面贴面、榫舌已插入），爆炸态 d=11（左右分开）。
+  const TONGUE = { len: 6, w: 2.6, h: 2.6 }
+  const HOLE = { w: 3.1, h: 3.1 } // 比榫舌略大，留出可见间隙
+  const BEAM = { len: 14, w: 5, h: 5 }
+
+  // 木纹程序生成，不引外部贴图，也不靠纯色假装木头
+  const grain = jointWoodTexture()
+  const woodMat = new THREE.MeshStandardMaterial({
+    map: grain, roughness: 0.78, metalness: 0.04, color: 0xfff2e0,
+  })
+  const deepMat = new THREE.MeshStandardMaterial({
+    map: grain, roughness: 0.7, metalness: 0.04, color: 0xf0cba4,
+  })
+
+  // 榫头：一段梁 + 伸出的榫舌
+  const tenonBeam = new THREE.Mesh(new THREE.BoxGeometry(BEAM.len, BEAM.h, BEAM.w), woodMat)
+  tenonBeam.position.set(-BEAM.len / 2, 0, 0)
+  const tongue = new THREE.Mesh(new THREE.BoxGeometry(TONGUE.len, TONGUE.h, TONGUE.w), deepMat)
+  tongue.position.set(TONGUE.len / 2, 0, 0)
   const tenon = group('joint_tenon', [tenonBeam, tongue])
-  tenon.position.set(-5, 0, 0)
 
-  const top = new THREE.Mesh(new THREE.BoxGeometry(16, 1.2, 5), std(PALETTE.wood))
-  top.position.set(0, 1.9, 0)
-  const bottom = top.clone()
-  bottom.material = std(PALETTE.wood)
-  bottom.position.set(0, -1.9, 0)
-  const back = new THREE.Mesh(new THREE.BoxGeometry(2, 5, 5), std(PALETTE.wood))
-  back.position.set(7, 0, 0)
-  const mortise = group('joint_mortise', [top, bottom, back])
-  mortise.position.set(5, 0, 0)
+  // 卯眼：带贯通方孔的梁（ExtrudeGeometry + 孔洞路径）
+  const shape = new THREE.Shape()
+  shape.moveTo(-BEAM.w / 2, -BEAM.h / 2)
+  shape.lineTo(BEAM.w / 2, -BEAM.h / 2)
+  shape.lineTo(BEAM.w / 2, BEAM.h / 2)
+  shape.lineTo(-BEAM.w / 2, BEAM.h / 2)
+  shape.closePath()
+  const hole = new THREE.Path()
+  hole.moveTo(-HOLE.w / 2, -HOLE.h / 2)
+  hole.lineTo(-HOLE.w / 2, HOLE.h / 2)
+  hole.lineTo(HOLE.w / 2, HOLE.h / 2)
+  hole.lineTo(HOLE.w / 2, -HOLE.h / 2)
+  hole.closePath()
+  shape.holes.push(hole)
 
-  return { tenon, mortise, assembledX: 5, explodedX: 13 }
+  const mortiseGeo = new THREE.ExtrudeGeometry(shape, {
+    depth: BEAM.len,
+    bevelEnabled: true,
+    bevelThickness: 0.05,
+    bevelSize: 0.05,
+    bevelSegments: 2,
+    curveSegments: 4,
+  })
+  // ExtrudeGeometry 沿 +Z 挤出，转成沿 +X（船体坐标），再把起点挪到接合面
+  mortiseGeo.rotateY(-Math.PI / 2)
+  mortiseGeo.translate(BEAM.len, 0, 0)
+  const mortiseBeam = new THREE.Mesh(mortiseGeo, woodMat)
+  const mortise = group('joint_mortise', [mortiseBeam])
+
+  // 装配态贴合（d=0），爆炸态分开；scene.js 只用这两个数
+  return { tenon, mortise, assembledX: 0, explodedX: 11 }
+}
+
+let _jointWood = null
+
+// 512x512 木纹：底色 + 若干条带噪声的纵向纹路。只生成一次，两个零件共用。
+function jointWoodTexture() {
+  if (_jointWood) return _jointWood
+  const size = 512
+  const c = document.createElement('canvas')
+  c.width = c.height = size
+  const g = c.getContext('2d')
+  g.fillStyle = '#7a5638'
+  g.fillRect(0, 0, size, size)
+  for (let i = 0; i < 220; i += 1) {
+    const y = Math.random() * size
+    const shade = 70 + Math.random() * 70
+    g.strokeStyle = `rgba(${shade},${Math.round(shade * 0.68)},${Math.round(shade * 0.42)},${0.1 + Math.random() * 0.3})`
+    g.lineWidth = 0.6 + Math.random() * 3.2
+    g.beginPath()
+    g.moveTo(0, y)
+    const amp = 2 + Math.random() * 5
+    const freq = (1 + Math.floor(Math.random() * 3)) * Math.PI * 2
+    for (let x = 0; x <= size; x += 16) {
+      g.lineTo(x, y + Math.sin((x / size) * freq + i) * amp)
+    }
+    g.stroke()
+  }
+  const tex = new THREE.CanvasTexture(c)
+  tex.wrapS = THREE.RepeatWrapping
+  tex.wrapT = THREE.RepeatWrapping
+  tex.colorSpace = THREE.SRGBColorSpace
+  tex.repeat.set(2, 1)
+  tex.anisotropy = 4
+  _jointWood = tex
+  return tex
 }
 
 function buildSeam() {
