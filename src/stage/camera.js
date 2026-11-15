@@ -7,7 +7,7 @@ const _tB = new THREE.Vector3()
 
 // 每个 beat 的相机目标位。键名对应 beats.js 的 stage.camera。
 export const CAMERAS = {
-  wide: { position: [88, 34, 108], target: [0, -2, 0], fov: 42 },
+  wide: { position: [88, 56, 108], target: [0, -7, 0], fov: 42 },
   joint: { position: [26, 14, 34], target: [0, 0, 0], fov: 40 },
   seam: { position: [2, 6, 46], target: [0, -1, 0], fov: 40 },
   cutaway: { position: [80, 70, 110], target: [0, 0, 0], fov: 44 },

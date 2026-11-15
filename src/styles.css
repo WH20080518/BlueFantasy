@@ -94,12 +94,11 @@ body {
 }
 
 .progress {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: fixed;
+  inset: auto 0 0 0;
   height: 2px;
-  background: rgba(233, 227, 214, 0.12);
+  background: rgba(233, 227, 214, 0.14);
+  z-index: 30;
 }
 
 .progress-fill {
