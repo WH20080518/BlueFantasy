@@ -186,6 +186,8 @@ function onBeat(i) {
   if (beats[i]) document.body.dataset.beat = beats[i].id
   clearLabel()
   overlay.renderBeat(i)
+  // 文案面板换了一屏，高度会变 → 下一帧重新量
+  maxScrollDirty = true
   if (stage3d) stage3d.enterBeat(i)
   if (fallback) fallback.setBeat(beats[i], lang)
   scheduleUrlWrite()
@@ -390,6 +392,7 @@ window.addEventListener('load', () => {
 window.addEventListener('resize', () => {
   measureVH()
   layout()
+  maxScrollDirty = true
   if (stage3d) stage3d.resize()
 })
 
@@ -438,11 +441,27 @@ if (!no3d && webglAvailable()) {
 /* ---------- 主循环：每帧读一次 scrollY ---------- */
 
 let last = performance.now()
+// scrollHeight 读一次会强制一次布局。每帧读，滚动时面板高度一变就掉帧。
+// 改成缓存：只有窗口尺寸变化、beat 切换（面板内容换了）时才重新量。
+let maxScroll = 0
+let maxScrollDirty = true
+function remeasureScroll() {
+  maxScroll = Math.max(0, document.documentElement.scrollHeight - vhBaseline)
+  maxScrollDirty = false
+}
+
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000)
   last = now
 
-  const max = document.documentElement.scrollHeight - vhBaseline
+  // 页面不可见时不跑这一帧：流体/反射那些离屏 pass 在后台白烧
+  if (document.hidden) {
+    requestAnimationFrame(frame)
+    return
+  }
+
+  if (maxScrollDirty) remeasureScroll()
+  const max = maxScroll
   const p = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0
   const i = beatIndexAt(p)
   const beat = beats[i]
