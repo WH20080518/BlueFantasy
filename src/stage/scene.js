@@ -184,6 +184,7 @@ function addBulkheadCaps(shipGroup, nodes) {
   // 全部压顶条用同一份材质，所以这里把它们的几何合并成一个网格：
   // 12 次绘制变 1 次，外观完全一致。
   const geos = []
+  const marked = []
   let baseMat = null
   const toShip = new THREE.Matrix4()
   for (let i = 1; i <= 12; i += 1) {
@@ -214,19 +215,22 @@ function addBulkheadCaps(shipGroup, nodes) {
     toShip.copy(shipGroup.matrixWorld).invert().multiply(g.matrixWorld).multiply(local)
     geo.applyMatrix4(toShip)
     geos.push(geo)
-    g.userData.capped = true
+    marked.push(g)
   }
   if (!geos.length) return null
 
   const merged = mergeGeometries(geos, false)
   geos.forEach((g) => g.dispose())
   if (!merged) return null
+  // 只有合并成功才标记这些板「已加顶条」：失败时下次还能重试
+  marked.forEach((g) => { g.userData.capped = true })
   const mat = baseMat ? baseMat.clone() : new THREE.MeshStandardMaterial({ color: 0x6b4b33 })
   mat.color = mat.color.clone().multiplyScalar(0.82)
   mat.roughness = 0.9
   const caps = new THREE.Mesh(merged, mat)
   caps.name = 'bulkhead_caps'
-  caps.castShadow = true
+  // 顶条不投影：原来逐条挂的时候就是关的，合并后保持同一观感，也少一份阴影开销
+  caps.castShadow = false
   caps.receiveShadow = true
   shipGroup.add(caps)
   return caps
@@ -567,6 +571,8 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
     const h = canvas.clientHeight || 1
     renderer.setSize(w, h, false)
     waterSceneRT.setSize(Math.max(1, Math.round(w * 0.6)), Math.max(1, Math.round(h * 0.6)))
+    // 尺寸变了，上一张折射图的屏幕坐标对不上了，作废重画
+    if (water) water.setSceneTexture(null)
     camera.aspect = w / h
     camera.updateProjectionMatrix()
   }
@@ -596,6 +602,8 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       if (beat.interaction === 'caulk') caulk.reset()
       parts.clear()
       parts.setPickables(beat.pick || [])
+      // 折射图是隔帧更新的：换屏时强制作废，避免拿上一屏的视角当反射源
+      water.setSceneTexture(null)
     },
 
     // progress 全局 0..1；i 当前 beat；lt beat 内进度；blend 朝下一 beat 的相机混合
