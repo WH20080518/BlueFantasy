@@ -61,6 +61,7 @@ function measureVH() {
 let currentBeat = -1
 let stage3d = null
 let threeFailed = false
+let stageFailReason = ''
 let fallback = null
 let labelPart = null
 let labelPinned = false
@@ -135,6 +136,8 @@ const overlay = createOverlay({
       document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en'
       storeLang(lang)
       overlay.setLang(lang)
+      // 换语言会替换整块文案，面板高度随之变化
+      maxScrollDirty = true
       if (fallback && currentBeat >= 0) fallback.setBeat(beats[currentBeat], lang)
       scheduleUrlWrite()
     },
@@ -181,8 +184,12 @@ function scheduleUrlWrite() {
 
 function onBeat(i) {
   currentBeat = i
+  // 按屏切版式：漏水那一屏的水在画面右半，文案要收窄让开
+  if (beats[i]) document.body.dataset.beat = beats[i].id
   clearLabel()
   overlay.renderBeat(i)
+  // 文案面板换了一屏，高度会变 → 下一帧重新量
+  maxScrollDirty = true
   if (stage3d) stage3d.enterBeat(i)
   if (fallback) fallback.setBeat(beats[i], lang)
   scheduleUrlWrite()
@@ -231,10 +238,22 @@ stageEl.addEventListener('focusout', () => {
 
 /* ---------- 降级 ---------- */
 
+// three 0.170 起只支持 WebGL2：这里若放行 WebGL1，
+// 会出现「检测通过 → new WebGLRenderer 抛 Error creating WebGL context →
+// 3D 被锁死」的情况，表现为 3D 按钮点不了。所以只认 webgl2。
 function webglAvailable() {
   try {
+    if (!window.WebGL2RenderingContext) {
+      stageFailReason = '这个浏览器没有 WebGL2（three 0.170 起只支持 WebGL2）'
+      return false
+    }
     const c = document.createElement('canvas')
-    return !!(window.WebGLRenderingContext && (c.getContext('webgl2') || c.getContext('webgl')))
+    const gl = c.getContext('webgl2', { failIfMajorPerformanceCaveat: false })
+    if (!gl) {
+      stageFailReason = 'WebGL2 被浏览器或显卡驱动禁用（检查 chrome://gpu 的 WebGL2 状态）'
+      return false
+    }
+    return true
   } catch {
     return false
   }
@@ -259,6 +278,7 @@ function applyViewMode() {
     if (b.dataset.mode === '3d' && threeFailed) {
       b.disabled = true
       b.setAttribute('aria-disabled', 'true')
+      if (stageFailReason) b.title = stageFailReason
     }
   })
   if (viewMode === '2d') {
@@ -374,8 +394,23 @@ window.addEventListener('load', () => {
 window.addEventListener('resize', () => {
   measureVH()
   layout()
+  maxScrollDirty = true
   if (stage3d) stage3d.resize()
 })
+
+// 字体是 font-display: swap，加载完成后正文行高会变、面板高度也会变。
+// 另外中文/英文切换、面板内容异步替换都可能改文档高度——用 ResizeObserver
+// 兜住所有这些都是最稳的，代价只有一次 compare。
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(() => {
+    maxScrollDirty = true
+  })
+}
+if (typeof ResizeObserver === 'function') {
+  new ResizeObserver(() => {
+    maxScrollDirty = true
+  }).observe(document.body)
+}
 
 if (!no3d && webglAvailable()) {
   // three 走动态 import，独立 chunk；失败则降级
@@ -385,11 +420,33 @@ if (!no3d && webglAvailable()) {
       stage3d = stage
       stage3d.resize()
       if (currentBeat >= 0) stage3d.enterBeat(currentBeat)
+      // 只在 dev 暴露调试句柄：拾取/可见性出问题时可以直接在控制台查，
+      // 不用靠截图猜。
+      if (import.meta.env.DEV) {
+        window.__bf = {
+          stage,
+          beats,
+          get beat() {
+            return beats[currentBeat]?.id ?? null
+          },
+        }
+      }
     })
     .catch((err) => {
       // 3D 加载失败：保留文案与 SVG，不白屏；并锁死 3D 选项
       threeFailed = true
+      stageFailReason = (err && err.message) ? err.message : String(err)
       console.error('3D stage failed, falling back to SVG:', err)
+      // 现场没有控制台也要能看到为什么退回 2D
+      const note = document.getElementById('intro-note')
+      if (note && !document.getElementById('intro-3d-error')) {
+        const p = document.createElement('p')
+        p.id = 'intro-3d-error'
+        p.className = 'intro-note'
+        p.style.color = '#c08a4a'
+        p.textContent = `3D 无法启动：${stageFailReason}`
+        note.insertAdjacentElement('afterend', p)
+      }
       useFallback()
       applyViewMode()
     })
@@ -400,11 +457,27 @@ if (!no3d && webglAvailable()) {
 /* ---------- 主循环：每帧读一次 scrollY ---------- */
 
 let last = performance.now()
+// scrollHeight 读一次会强制一次布局。每帧读，滚动时面板高度一变就掉帧。
+// 改成缓存：只有窗口尺寸变化、beat 切换（面板内容换了）时才重新量。
+let maxScroll = 0
+let maxScrollDirty = true
+function remeasureScroll() {
+  maxScroll = Math.max(0, document.documentElement.scrollHeight - vhBaseline)
+  maxScrollDirty = false
+}
+
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000)
   last = now
 
-  const max = document.documentElement.scrollHeight - vhBaseline
+  // 页面不可见时不跑这一帧：流体/反射那些离屏 pass 在后台白烧
+  if (document.hidden) {
+    requestAnimationFrame(frame)
+    return
+  }
+
+  if (maxScrollDirty) remeasureScroll()
+  const max = maxScroll
   const p = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0
   const i = beatIndexAt(p)
   const beat = beats[i]
