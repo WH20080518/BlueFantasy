@@ -147,8 +147,9 @@ function bindRealMeshes(gltf, nodes, { unit } = {}) {
       } else {
         obj.material = base
       }
-      obj.castShadow = false
-      obj.receiveShadow = false
+      // 现在是真的开阴影了：结构件既投影也接收，凹处才有体积感。
+      obj.castShadow = true
+      obj.receiveShadow = true
     })
 
     group.clear()
@@ -231,6 +232,10 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   })
   renderer.setPixelRatio(clampedDPR())
   renderer.setClearColor(0x000000, 0)
+  // 之前整艘船是不投影的，所有凹处都靠贴图硬撑，看起来就是「平」和「糙」。
+  // 开一张 2048 的软阴影：船体、甲板、隔舱板之间终于有接触阴影。
+  renderer.shadowMap.enabled = true
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap
   // 纯色/贴图材质都需要色调映射与 sRGB 输出，否则发灰发脏。
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.toneMappingExposure = 0.95
@@ -250,9 +255,23 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   const camera = new THREE.PerspectiveCamera(CAMERAS.wide.fov, 1, 0.1, 1000)
   const rig = new CameraRig(camera, reducedMotion)
 
-  scene.add(new THREE.HemisphereLight(0xe9e3d6, 0x3a2a1d, 1.05))
-  const sun = new THREE.DirectionalLight(0xfff2dd, 1.5)
+  // 开了阴影之后原来 1.5 的太阳会把甲板打到接近白色（ACES 下高光过曝），
+  // 压到 1.2；半球光稍微提一点补暗部，整体不再是「一刀切亮」。
+  scene.add(new THREE.HemisphereLight(0xe9e3d6, 0x3a2a1d, 0.95))
+  const sun = new THREE.DirectionalLight(0xfff2dd, 1.2)
   sun.position.set(60, 80, 40)
+  // 阴影相机要罩住整条船（船长约 100 单位）。范围给太紧会出现阴影被裁掉、
+  // 给太松会糊；±90 刚好覆盖 12 道隔舱板 + 艏艉。
+  sun.castShadow = true
+  sun.shadow.mapSize.set(2048, 2048)
+  sun.shadow.camera.left = -90
+  sun.shadow.camera.right = 90
+  sun.shadow.camera.top = 90
+  sun.shadow.camera.bottom = -90
+  sun.shadow.camera.near = 1
+  sun.shadow.camera.far = 260
+  sun.shadow.bias = -0.0004
+  sun.shadow.normalBias = 0.5
   scene.add(sun)
 
   // 剖切时补一盏正面光：外壳被切掉后，船内朝 +Z 的内壁与隔舱板几乎没有直接受光，
@@ -275,6 +294,32 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   // 在子对象上 += 会被它覆盖掉。
   detailGroup.position.x = JOINT_OFFSET_X
   scene.add(shipGroup, detailGroup, shadow)
+
+  // 统一的「观感」设置：投影/接影 + 贴图各向异性。
+  // 占位几何和真模型都要过一遍，所以在两处调用（建好时、绑定真模型后）。
+  const maxAniso = renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 1
+  function polishMeshes(root) {
+    root.traverse((o) => {
+      if (!o.isMesh || o === shadow) return
+      o.castShadow = true
+      o.receiveShadow = true
+      const list = Array.isArray(o.material) ? o.material : [o.material]
+      list.forEach((m) => {
+        if (!m) return
+        for (const key of ['map', 'normalMap', 'roughnessMap', 'aoMap']) {
+          const tex = m[key]
+          if (!tex) continue
+          const want = Math.min(8, maxAniso)
+          if (tex.anisotropy !== want) {
+            tex.anisotropy = want
+            tex.needsUpdate = true
+          }
+        }
+      })
+    })
+  }
+  polishMeshes(shipGroup)
+  polishMeshes(detailGroup)
 
   // parts.json（可选）：应用装配/爆炸位
   // 实船 12 道隔舱板时，占位几何只有 3 道；这里按 parts.json 补建缺失的 Group，
@@ -320,6 +365,8 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
           if (g) list.push(g)
         }
         flood.rebindBulkheads(list)
+        // 真模型接进来之后再过一遍：新网格默认不带投影设置
+        polishMeshes(shipGroup)
         // 用真模型的隔舱位置决定分舱边界，水面格数才跟船体对得上
         const xs = []
         const box = new THREE.Box3()
