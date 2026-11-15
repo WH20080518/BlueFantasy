@@ -263,7 +263,12 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   // 阴影相机要罩住整条船（船长约 100 单位）。范围给太紧会出现阴影被裁掉、
   // 给太松会糊；±90 刚好覆盖 12 道隔舱板 + 艏艉。
   sun.castShadow = true
-  sun.shadow.mapSize.set(2048, 2048)
+  // 阴影贴图按设备分档：手机 1024、桌面 2048。
+  // 2048² 每帧多一次全船深度的绘制与软采样，中端手机上会掉帧。
+  const coarsePointer = typeof matchMedia === 'function'
+    && matchMedia('(pointer: coarse)').matches
+  const shadowSize = coarsePointer ? 1024 : 2048
+  sun.shadow.mapSize.set(shadowSize, shadowSize)
   sun.shadow.camera.left = -90
   sun.shadow.camera.right = 90
   sun.shadow.camera.top = 90
@@ -298,18 +303,25 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   // 统一的「观感」设置：投影/接影 + 贴图各向异性。
   // 占位几何和真模型都要过一遍，所以在两处调用（建好时、绑定真模型后）。
   const maxAniso = renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 1
+  // 水面/水体/断面这些半透明件不能投影：阴影 pass 不认透明度，
+  // 会把整块水投成一块实心板。按名字排除，GLB 晚绑定也挡得住。
+  const NO_SHADOW = /^water|^ocean/
   function polishMeshes(root) {
     root.traverse((o) => {
       if (!o.isMesh || o === shadow) return
+      if (NO_SHADOW.test(o.name || '')) return
       o.castShadow = true
       o.receiveShadow = true
       const list = Array.isArray(o.material) ? o.material : [o.material]
       list.forEach((m) => {
         if (!m) return
+        // 半透明材质不投影，其余照常
+        if (m.transparent) o.castShadow = false
         for (const key of ['map', 'normalMap', 'roughnessMap', 'aoMap']) {
           const tex = m[key]
           if (!tex) continue
-          const want = Math.min(8, maxAniso)
+          // 只有漫反射贴图吃满 8；法线/粗糙/AO 在低端 GPU 上白烧采样带宽
+          const want = Math.min(key === 'map' ? 8 : 4, maxAniso)
           if (tex.anisotropy !== want) {
             tex.anisotropy = want
             tex.needsUpdate = true
