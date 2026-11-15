@@ -410,9 +410,23 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
   body.renderOrder = 3
   body.frustumCulled = false
 
+  // 剖切断面：水面被切开那一侧必须有一块「厚度」才是水，否则看得见水面、
+  // 却看不见水的正立面 —— 这就是「只有水面、没有侧面」的根因。
+  // body 只建了左右两舷的长壁，x 方向的断面从来没建过；而剖切面又把近侧切掉，
+  // 于是从舱口望进去只剩水面和远侧内壁。
+  const capGeo = new THREE.BufferGeometry()
+  const capPos = new Float32Array(MAX_COMP * 6 * 3)
+  const capCol = new Float32Array(MAX_COMP * 6 * 3)
+  capGeo.setAttribute('position', new THREE.BufferAttribute(capPos, 3))
+  capGeo.setAttribute('color', new THREE.BufferAttribute(capCol, 3))
+  const cap = new THREE.Mesh(capGeo, bodyMat)
+  cap.name = 'water_cut'
+  cap.renderOrder = 3
+  cap.frustumCulled = false
+
   const group = new THREE.Group()
   group.name = 'water'
-  group.add(body, surface)
+  group.add(body, surface, cap)
   group.visible = false
 
   let edges = [X_MIN, X_MAX]
@@ -556,9 +570,53 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
     body.visible = ptr > 0
   }
 
+  // 剖切断面：贴在裁剪面内侧（z 略小于 2），每个有水舱一块，
+  // 从舱底铺到水位。用和 body 同一份材质，所以焦散、水色、深度渐变都一致。
+  const CUT_Z = 1.96
+  function rebuildCaps() {
+    let ptr = 0
+    const put = (x, y, d, t) => {
+      capPos[ptr * 3] = x
+      capPos[ptr * 3 + 1] = y
+      capPos[ptr * 3 + 2] = CUT_Z
+      capCol[ptr * 3] = d
+      capCol[ptr * 3 + 1] = t
+      capCol[ptr * 3 + 2] = 0
+      ptr += 1
+    }
+
+    for (let i = 0; i < comp; i += 1) {
+      const lvl = levels[i]
+      if (lvl <= floorY + 0.05) continue
+      const x0 = Math.max(X_MIN, edges[i] + INSET)
+      const x1 = Math.min(X_MAX, edges[i + 1] - INSET)
+      if (x1 - x0 < 0.6) continue
+      const b0 = bottomAt(x0, floorY)
+      const b1 = bottomAt(x1, floorY)
+      const d0 = Math.max(0, lvl - b0) / 9
+      const d1 = Math.max(0, lvl - b1) / 9
+      // 两个三角形拼一块竖直四边形；bodyMat 是 DoubleSide，不用担心朝向
+      put(x0, b0, d0, 0)
+      put(x1, b1, d1, 0)
+      put(x0, lvl, d0, 1)
+      put(x1, b1, d1, 0)
+      put(x1, lvl, d1, 1)
+      put(x0, lvl, d0, 1)
+    }
+
+    for (let k = ptr * 3; k < capPos.length; k += 1) capPos[k] = 0
+    for (let k = ptr * 3; k < capCol.length; k += 1) capCol[k] = 0
+    capGeo.attributes.position.needsUpdate = true
+    capGeo.attributes.color.needsUpdate = true
+    capGeo.setDrawRange(0, ptr)
+    capGeo.computeBoundingSphere()
+    cap.visible = ptr > 0
+  }
+
   function rebuild() {
     rebuildSurface()
     rebuildBody()
+    rebuildCaps()
   }
 
   function setEdges(xs) {
@@ -724,6 +782,7 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
   function setSurfaceHidden(hidden) {
     surface.visible = !hidden
     body.visible = !hidden
+    cap.visible = !hidden
   }
 
   // 折射用的「无水场景」纹理：由 scene.js 每帧渲染后传进来。

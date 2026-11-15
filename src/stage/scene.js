@@ -530,9 +530,11 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
         // 榫卯/接缝这几件是「放大看」的示意件，尺寸按镜头距离定的。
         // 相机还在整船视角时就把它们并进来，会从船壳里穿出来——
         // 所以在混合过半之前先不显示，等镜头拉近了再出现。
-        // 0.75 而不是 0.5：b2 的榫卯和 b3 的木钉都是放大件，
+        // 0.95 而不是 0.5：b2 的榫卯和 b3 的木钉都是放大件，
         // 在过渡中段同时出现会像一堆东西错位地插在一起。
-        const early = blend > 0.75
+        // 之前 0.75 还是太早——b2 末尾（滚到最后一段）钉排就已经压进来了。
+        // 现在几乎等这一屏走完才并入，断开则是 0.6 就开始收。
+        const early = blend > 0.95
         next.stage.nodes.forEach((n) => {
           if (!early && ZOOM_ONLY.has(n)) return
           visibleSet.add(n)
