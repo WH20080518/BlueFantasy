@@ -7,7 +7,7 @@ const _tB = new THREE.Vector3()
 
 // 每个 beat 的相机目标位。键名对应 beats.js 的 stage.camera。
 export const CAMERAS = {
-  wide: { position: [88, 34, 108], target: [0, -2, 0], fov: 42 },
+  wide: { position: [88, 56, 108], target: [0, -7, 0], fov: 42 },
   joint: { position: [26, 14, 34], target: [0, 0, 0], fov: 40 },
   // 板缝是 40 个单位长的整段：46 的距离只有约 33 个单位视宽，两端必然出画。
   // 拉到 70，视点居中；左右落点靠 detailGroup 的位移，不在机位上拧。
