@@ -572,9 +572,9 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       }
 
       // caulk 每一步都会写 nails.visible / caulk.visible，等于绕过了上面的可见性表。
-      // 之前 blend > 0 就让它跑，于是 b2 还没读完，b3 的钉排已经被它点亮了。
-      // 现在只有真正进入 b3 之后才交给它管。
-      if (beat.interaction === 'caulk' || (next && next.interaction === 'caulk' && blend > 0.9)) {
+      // 只要它在跑，子网格的显隐就不归 parts 管——所以只在「当前 beat 就是它」时跑。
+      // 入场不需要提前跑：enterBeat 已经 reset，切过来第一帧就由它接管。
+      if (beat.interaction === 'caulk') {
         caulk.update(dt, lt)
       }
       flood.update(dt)

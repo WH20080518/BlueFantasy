@@ -54,6 +54,11 @@ export function createCaulk(refs, reducedMotion) {
       flashT = 0
       upper.position.y = openY
       lower.position.y = -openY
+      // 显式复位子网格可见性：reset 之后如果再被父级短暂放出来，
+      // 不会带着上一轮的「已钉 / 已捻」状态。
+      nails.visible = false
+      caulk.visible = false
+      marker.visible = false
       applyFlash()
     },
     // localT：beat 内滚动进度，用于分层预览（钉与捻缝随滚动淡入提示位）

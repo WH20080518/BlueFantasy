@@ -136,6 +136,8 @@ const overlay = createOverlay({
       document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en'
       storeLang(lang)
       overlay.setLang(lang)
+      // 换语言会替换整块文案，面板高度随之变化
+      maxScrollDirty = true
       if (fallback && currentBeat >= 0) fallback.setBeat(beats[currentBeat], lang)
       scheduleUrlWrite()
     },
@@ -395,6 +397,20 @@ window.addEventListener('resize', () => {
   maxScrollDirty = true
   if (stage3d) stage3d.resize()
 })
+
+// 字体是 font-display: swap，加载完成后正文行高会变、面板高度也会变。
+// 另外中文/英文切换、面板内容异步替换都可能改文档高度——用 ResizeObserver
+// 兜住所有这些都是最稳的，代价只有一次 compare。
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(() => {
+    maxScrollDirty = true
+  })
+}
+if (typeof ResizeObserver === 'function') {
+  new ResizeObserver(() => {
+    maxScrollDirty = true
+  }).observe(document.body)
+}
 
 if (!no3d && webglAvailable()) {
   // three 走动态 import，独立 chunk；失败则降级
