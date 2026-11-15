@@ -810,6 +810,8 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
     setFlows,
     setBlend,
     setSceneTexture,
+    // 是否已经有可用的折射贴图（scene.js 隔帧更新时用来判断第一次要不要强制渲染）
+    hasRefraction: () => surfaceUniforms.uHasScene.value > 0.5,
     dominant,
     setSurfaceHidden,
     update,

@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { buildPlaceholders } from './placeholder.js'
 import { CameraRig, CAMERAS } from './camera.js'
 import { Parts } from './parts.js'
@@ -179,44 +180,56 @@ function clampedDPR() {
 // 隔舱板是 GLB 里的薄板：顶边一条直棱，在暗舱里读起来像一叠卡片。
 // 给每道板补一条压顶木条（真实隔舱都有），边缘有了厚度和转折，就不突兀了。
 function addBulkheadCaps(shipGroup, nodes) {
-  let added = 0
+  // 12 道板各挂一条压顶木条 = 12 次 draw call，b5 本来就吃紧。
+  // 全部压顶条用同一份材质，所以这里把它们的几何合并成一个网格：
+  // 12 次绘制变 1 次，外观完全一致。
+  const geos = []
+  let baseMat = null
+  const toShip = new THREE.Matrix4()
   for (let i = 1; i <= 12; i += 1) {
     const name = `bulkhead_${String(i).padStart(2, '0')}`
     const g = nodes.get(name)
     if (!g || g.userData.capped) continue
     g.updateWorldMatrix(true, true)
-    // 用局部包围盒：压顶条必须挂在这道隔舱板自己身上，
-    // 否则它不受 beat 可见性控制——b2 里就会有一排木条浮在半空。
     const box = new THREE.Box3().setFromObject(g)
     box.applyMatrix4(new THREE.Matrix4().copy(g.matrixWorld).invert())
     if (box.isEmpty()) continue
     const size = box.getSize(new THREE.Vector3())
 
-    let baseMat = null
-    g.traverse((o) => {
-      if (!baseMat && o.isMesh && o.material) {
-        baseMat = Array.isArray(o.material) ? o.material[0] : o.material
-      }
-    })
-    const mat = baseMat ? baseMat.clone() : new THREE.MeshStandardMaterial({ color: 0x6b4b33 })
-    mat.color = mat.color.clone().multiplyScalar(0.82)
-    mat.roughness = 0.9
+    if (!baseMat) {
+      g.traverse((o) => {
+        if (!baseMat && o.isMesh && o.material) {
+          baseMat = Array.isArray(o.material) ? o.material[0] : o.material
+        }
+      })
+    }
 
-    const cap = new THREE.Mesh(new THREE.BoxGeometry(size.x * 0.98, 0.34, size.z * 1.04), mat)
-    cap.name = `${name}_cap`
-    cap.position.set(
+    // 顶条位置先在隔舱板组内算好，再整体换算到 shipGroup 的局部空间
+    const geo = new THREE.BoxGeometry(size.x * 0.98, 0.34, size.z * 1.04)
+    const local = new THREE.Matrix4().makeTranslation(
       (box.min.x + box.max.x) / 2,
       box.max.y + 0.1,
       (box.min.z + box.max.z) / 2,
     )
-    cap.castShadow = false
-    cap.receiveShadow = false
-    // 挂在隔舱板组下：跟着 beat 一起显隐，也跟着剖切面一起被裁
-    g.add(cap)
+    toShip.copy(shipGroup.matrixWorld).invert().multiply(g.matrixWorld).multiply(local)
+    geo.applyMatrix4(toShip)
+    geos.push(geo)
     g.userData.capped = true
-    added += 1
   }
-  return added
+  if (!geos.length) return null
+
+  const merged = mergeGeometries(geos, false)
+  geos.forEach((g) => g.dispose())
+  if (!merged) return null
+  const mat = baseMat ? baseMat.clone() : new THREE.MeshStandardMaterial({ color: 0x6b4b33 })
+  mat.color = mat.color.clone().multiplyScalar(0.82)
+  mat.roughness = 0.9
+  const caps = new THREE.Mesh(merged, mat)
+  caps.name = 'bulkhead_caps'
+  caps.castShadow = true
+  caps.receiveShadow = true
+  shipGroup.add(caps)
+  return caps
 }
 
 export async function createStage({ canvas, beats, reducedMotion, base, onModelFail }) {
@@ -358,6 +371,8 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
 
   // 真模型异步接入：不阻塞首屏，失败/超时保持占位几何。
   let realModel = null
+  // 合并后的压顶木条（单网格）：跟着隔舱板一起显隐，剖切时一起裁
+  let bulkheadCaps = null
   loadShip(`${base}models/ship.glb`, {
     base,
     // 仅“文件存在但解析失败”上报给上层；缺失/超时属于模型未交付，保持占位。
@@ -396,7 +411,11 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
           console.info(`[stage] 水面分舱 ${edgeList.length - 1} 格`)
         }
         console.info(`[stage] GLB 已接入 ${bound} 个零件，隔舱 ${list.length} 道`)
-        addBulkheadCaps(shipGroup, nodes)
+        bulkheadCaps = addBulkheadCaps(shipGroup, nodes)
+        if (bulkheadCaps && cutOn) {
+          bulkheadCaps.material.clippingPlanes = [cutPlane]
+          bulkheadCaps.material.needsUpdate = true
+        }
         // 深链直接落在 b4/b5 时，模型可能晚于剖切开关绑定：
         // 旧占位网格的克隆材质已经随 group.clear() 脱离场景，新网格却还没有裁剪面，
         // 而 setCutaway 的 guard 会把这个状态一直挡住，所以这里强制重挂一次。
@@ -432,6 +451,8 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   // 并且只有变化超过 0.02 才重建几何。
   let oceanLevel = null
   let oceanBuilt = null
+  // 折射预渲染的隔帧计数（见下面水面的那段）
+  let refractPhase = 0
   // 折射用的「无水场景」：半分辨率就够了——水下本来就被水色压暗，
   // 高分辨率只是白花一次全场景绘制的开销。
   const waterSceneRT = new THREE.WebGLRenderTarget(512, 288, {
@@ -607,6 +628,8 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
         }
       }
       parts.setVisible(visibleSet)
+      // 压顶木条合并成了一个网格，不参与上面的节点表，单独跟隔舱板同进同出
+      if (bulkheadCaps) bulkheadCaps.visible = visibleSet.has('bulkhead_01')
 
       // 剖舱与漏水两屏切掉近侧一半船体，其余屏恢复完整船壳
       setCutaway(beat.id === 'b4' || beat.id === 'b5')
@@ -679,8 +702,10 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
 
       // 水面折射：先把「不含水体」的场景渲进纹理，水面再按屏幕坐标采样它，
       // 于是水下那层木头是被折射、被水色吸收过的——这是「像水」的关键一步。
-      // 只在有水面的两屏多画一次，其余屏不受影响。
-      if (water.mesh.visible) {
+      // 这一趟是把整个场景再画一遍（b5 时约 40 次 draw call），所以隔帧更新：
+      // 水面在动，但折射贴图差一帧完全看不出来，开销直接砍半。
+      refractPhase = (refractPhase + 1) % 2
+      if (water.mesh.visible && (refractPhase === 0 || !water.hasRefraction())) {
         water.mesh.visible = false
         const prevRT = renderer.getRenderTarget()
         renderer.setRenderTarget(waterSceneRT)
@@ -694,7 +719,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
           renderer.domElement.height || 1,
         )
       } else {
-        water.setSceneTexture(null)
+        if (!water.mesh.visible) water.setSceneTexture(null)
       }
 
       renderer.render(scene, camera)
