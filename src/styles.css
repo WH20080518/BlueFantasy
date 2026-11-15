@@ -601,12 +601,14 @@ body[data-beat='b5'] .copy-body p {
   .copy {
     left: 0.6rem;
     right: 0.6rem;
-    bottom: 0.6rem;
+    /* 底部留出 iOS home 手势条的高度，否则面板贴着边缘、正文最后一两行被压住 */
+    bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px));
     max-width: none;
-    max-height: 46svh;
+    /* 46svh 在手机上占了近一半屏，船看不全；压到 38svh，正文本身内部可滚 */
+    max-height: 38svh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding: 0.75rem 0.85rem 0.8rem;
+    padding: 0.7rem 0.85rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
   }
 
   .copy-title {

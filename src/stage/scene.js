@@ -530,17 +530,18 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
         // 榫卯/接缝这几件是「放大看」的示意件，尺寸按镜头距离定的。
         // 相机还在整船视角时就把它们并进来，会从船壳里穿出来——
         // 所以在混合过半之前先不显示，等镜头拉近了再出现。
-        // 0.95 而不是 0.5：b2 的榫卯和 b3 的木钉都是放大件，
-        // 在过渡中段同时出现会像一堆东西错位地插在一起。
-        // 之前 0.75 还是太早——b2 末尾（滚到最后一段）钉排就已经压进来了。
-        // 现在几乎等这一屏走完才并入，断开则是 0.6 就开始收。
-        const early = blend > 0.95
+        // 放大件（榫卯、板缝、铁钉）不参与「提前并入」。
+        // blend 是相机混合量，滚到 b2 末尾时它已经接近 1，任何阈值都会让
+        // b3 的钉排压在 b2 文案还没读完的时候出现。这几件只在 beat 真正切换时
+        // 才进来；离开时仍然 0.6 就开始收，避免两套放大件同框。
+        const early = false
         next.stage.nodes.forEach((n) => {
           if (!early && ZOOM_ONLY.has(n)) return
           visibleSet.add(n)
         })
-        // 反过来：已经要离开这一屏时，本屏的放大件也提前收掉
-        if (blend > 0.6) {
+        // 反过来：确实要离开这一屏时才收本屏的放大件。
+        // 0.6 太早——b2 后半段榫卯会先消失，然后钉排又从旁边冒出来。
+        if (blend > 0.9) {
           beat.stage.nodes.forEach((n) => {
             if (ZOOM_ONLY.has(n)) visibleSet.delete(n)
           })
@@ -570,7 +571,10 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
         joint.mortise.position.x = d + JOINT_OFFSET_X
       }
 
-      if (beat.interaction === 'caulk' || (next && next.interaction === 'caulk' && blend > 0)) {
+      // caulk 每一步都会写 nails.visible / caulk.visible，等于绕过了上面的可见性表。
+      // 之前 blend > 0 就让它跑，于是 b2 还没读完，b3 的钉排已经被它点亮了。
+      // 现在只有真正进入 b3 之后才交给它管。
+      if (beat.interaction === 'caulk' || (next && next.interaction === 'caulk' && blend > 0.9)) {
         caulk.update(dt, lt)
       }
       flood.update(dt)
