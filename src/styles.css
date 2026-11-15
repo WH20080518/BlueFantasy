@@ -34,6 +34,21 @@ body {
   overflow-x: hidden;
 }
 
+/* 舞台底色：船体是深棕，底面原来也是深棕，两者糊在一起。
+   这里铺一层冷色的中心光晕（船所在的位置偏亮偏青）+ 顶部一点暖光，
+   船是暖的、背景是冷的，轮廓才跳得出来。纯 CSS，不影响 3D 渲染。 */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(105% 85% at 50% 44%, rgba(94, 140, 150, 0.18), rgba(10, 20, 24, 0) 62%),
+    radial-gradient(130% 110% at 50% 4%, rgba(192, 138, 74, 0.12), rgba(0, 0, 0, 0) 58%),
+    linear-gradient(180deg, #101c21 0%, #0a1316 58%, #070e10 100%);
+}
+
 :focus-visible {
   outline: 2px solid var(--tung);
   outline-offset: 3px;
