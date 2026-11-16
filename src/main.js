@@ -325,19 +325,38 @@ function presentIntro() {
   introBtn.focus({ preventScroll: true })
 }
 
+/** 开场页移除会让文档高度变化，浏览器的滚动锚定会把位置带偏；等一帧后再对齐。 */
+function settleScroll(fn) {
+  requestAnimationFrame(() => requestAnimationFrame(fn))
+}
+
+/** ?beat=N 且合法时，说明进站前已经按深链定位过，开场页关闭时不能把位置拉回顶部。 */
+function hasDeepLinkBeat() {
+  const raw = new URLSearchParams(window.location.search).get('beat')
+  if (raw === null) return false
+  const n = Number.parseInt(raw, 10)
+  return Number.isFinite(n) && n >= 1
+}
+
 function enterSite() {
   if (!introEl || introEl.hidden || introEl.classList.contains('is-leaving')) return
-  window.scrollTo(0, 0)
+  const keepPosition = hasDeepLinkBeat()
+  if (!keepPosition) window.scrollTo(0, 0)
   document.documentElement.classList.remove('intro-locked')
   if (reducedMotion()) {
     introEl.remove()
     stageEl.focus({ preventScroll: true })
+    // 开场页本身占一屏，移除后文档高度变化会把滚动位置带偏，这里再对齐一次
+    if (keepPosition) applyInitialLocation()
+    else settleScroll(() => window.scrollTo(0, 0))
     return
   }
   introEl.classList.add('is-leaving')
   window.setTimeout(() => {
     introEl.remove()
     stageEl.focus({ preventScroll: true })
+    if (keepPosition) applyInitialLocation()
+    else settleScroll(() => window.scrollTo(0, 0))
   }, 560)
 }
 
