@@ -582,6 +582,39 @@ body[data-beat='b5'] .copy-body p {
   .quiz-q {
     font-size: 0.88rem;
   }
+
+  /* 第 7 屏没有 3D 交互要留位置，面板放开一档，
+     否则三道题的选项会被截在面板外面，得在面板里滚才能看到 */
+  body[data-beat='b7'] .copy {
+    max-height: 62svh;
+  }
+}
+
+/* 触屏设备统一命中区：手指不是鼠标，40px 是底线、44px 接近 Apple HIG。
+   这一条按指针类型判定，平板（768 宽）也算触屏，不跟着 640px 断点走。 */
+@media (pointer: coarse) {
+  .quiz-opt,
+  .caulk-step,
+  .flood-btn,
+  .replay {
+    min-height: 44px;
+  }
+
+  /* 只有选项按钮需要垂直居中：文案是多行的，靠 min-height + 居中才不贴顶。
+     其余三类按钮内部是单行文字或图标组合，改 flex 会动到既有对齐，不动。 */
+  .quiz-opt {
+    display: flex;
+    align-items: center;
+  }
+
+  .lang-toggle {
+    min-width: 44px;
+    min-height: 40px;
+  }
+
+  .intro-mode-btn {
+    min-height: 38px;
+  }
 }
 
 .credits {
@@ -841,6 +874,58 @@ html.intro-locked .seal {
   .intro-start {
     padding: 0.7rem 1.7rem;
     letter-spacing: 0.16em;
+  }
+}
+
+/* 矮视口（手机横屏 812×375、小折叠机）：开场页按桌面节奏排会超出下边界，
+   3D/2D 开关被切掉。这里整体压缩一档，并允许开场页内部滚动兜底。 */
+@media (max-height: 520px) {
+  .intro {
+    padding: 1rem;
+    overflow-y: auto;
+    align-items: start;
+  }
+
+  .intro-inner {
+    padding: 0.5rem 0;
+    max-width: 90vw;
+  }
+
+  .intro-eyebrow {
+    margin-bottom: 0.6rem;
+    font-size: 0.66rem;
+  }
+
+  .intro-title {
+    font-size: clamp(2rem, 9vh, 3.4rem);
+  }
+
+  .intro-sub {
+    margin-top: 0.7rem;
+    font-size: 0.86rem;
+    line-height: 1.6;
+  }
+
+  .intro-start {
+    margin-top: 1rem;
+    padding: 0.55rem 1.5rem;
+  }
+
+  .intro-mode {
+    margin-top: 0.6rem;
+  }
+
+  /* 横屏时宽屏断点走的是桌面样式（无 max-height），文案面板会长到视口外。
+     这里统一兜一个上限，超出部分面板内部滚动。
+     要减掉底部安全区：box-sizing 是 border-box，padding 会从这 74svh 里扣，
+     不减的话 iOS 底部手势区会把正文挤成一两行。
+     第 7 屏在矮视口也吃这条 —— 74svh 已经大于窄屏的 62svh，不用再单独开一条。 */
+  .copy {
+    max-height: calc(74svh - env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
