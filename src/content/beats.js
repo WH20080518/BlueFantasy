@@ -195,8 +195,12 @@ export const ui = {
     解释译: { zh: '解释译', en: 'explained' },
   },
   replay: { zh: '重新看一遍', en: 'Watch again' },
+  disclaimer: {
+    zh: '结构示意：比例与节点形制经过简化，不代表某一艘沉船的实测复原。',
+    en: 'Structural diagram: proportions and joint forms are simplified; this is not an archaeological reconstruction of a specific wreck.',
+  },
   credits: {
-    zh: '参考：泉州湾宋代海船、南海I号、华光礁I号等考古资料与造船史研究（见项目文档）。',
-    en: 'Sources: excavation reports on the Quanzhou and Nanhai I wrecks, and histories of Chinese shipbuilding (see project docs).',
+    zh: '来源：泉州湾后渚港宋代海船，1974 年发掘，残长 24.2 米，12 道隔舱板分隔成 13 个舱；「中国水密隔舱福船制造技艺」2010 年列入 UNESCO 急需保护名录。核对记录见 docs/10-fact-check.md。',
+    en: 'Sources: the Song-dynasty ship from Houzhu, Quanzhou Bay (excavated 1974; 24.2 m surviving length; 12 bulkheads forming 13 compartments); Chinese junk-building techniques were inscribed on the UNESCO Urgent Safeguarding list in 2010. Verification notes: docs/10-fact-check.md.',
   },
 }
