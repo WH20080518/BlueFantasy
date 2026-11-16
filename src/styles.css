@@ -625,6 +625,30 @@ body[data-beat='b5'] .copy-body p {
   max-width: 48ch;
 }
 
+/* 结构示意声明：常驻在模型右上角，随版面固定，不遮挡文案面板 */
+.stage-disclaimer {
+  position: absolute;
+  z-index: 4;
+  top: 3.2rem;
+  right: clamp(1rem, 3vw, 2rem);
+  max-width: 34ch;
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.55;
+  color: var(--mist);
+  text-align: right;
+  opacity: 0.82;
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .stage-disclaimer {
+    top: 3rem;
+    max-width: 20ch;
+    font-size: 0.68rem;
+  }
+}
+
 .replay {
   appearance: none;
   border: 1px solid var(--tung);

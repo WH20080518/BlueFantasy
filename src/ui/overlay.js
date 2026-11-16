@@ -57,6 +57,7 @@ export function createOverlay({ reducedMotion, fallbackMode, handlers, initialLa
     termsList: $('terms-list'),
     codaUI: $('coda-ui'),
     credits: $('credits'),
+    disclaimer: $('stage-disclaimer'),
     replay: $('replay'),
     indicator: $('beat-indicator'),
     fill: $('progress-fill'),
@@ -173,6 +174,7 @@ let lastInteractionBeat = -1
     el.bar.setAttribute('aria-label', t(ui.progressAria))
     el.replay.textContent = t(ui.replay)
     el.credits.textContent = t(ui.credits)
+    el.disclaimer.textContent = t(ui.disclaimer)
     el.termsTitle.textContent = t(ui.termsTitle)
     if (beatIndex >= 0 && beats[beatIndex].interaction === 'terms') renderTerms()
     caulkReset.textContent = t(CAULK_RESET_LABEL)
