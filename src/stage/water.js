@@ -404,6 +404,11 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
     depthWrite: false,
     side: THREE.DoubleSide,
     clipping: true,
+    // 断面和水面在水线处共边：不偏一点，iOS 的深度精度下会互相抢，
+    // 表现为水线上一圈细密的闪点。让水体稳定压在水面之上。
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
   })
   const body = new THREE.Mesh(bodyGeo, bodyMat)
   body.name = 'water_body'
@@ -421,7 +426,8 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
   capGeo.setAttribute('color', new THREE.BufferAttribute(capCol, 3))
   const cap = new THREE.Mesh(capGeo, bodyMat)
   cap.name = 'water_cut'
-  cap.renderOrder = 3
+  // 与 body 同为透明件，给一个明确的先后，免得排序在移动端逐帧变化
+  cap.renderOrder = 4
   cap.frustumCulled = false
 
   const group = new THREE.Group()
@@ -432,6 +438,8 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
   let edges = [X_MIN, X_MAX]
   let levels = [floorY]
   let flows = [0]
+  // 几何重建次数：调参时用来确认「是不是每帧都在重建」（水面闪烁的头号嫌疑）
+  let rebuildCount = 0
   let blend = 0.01
   let comp = 1
   let elapsed = 0
@@ -617,6 +625,7 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
     rebuildSurface()
     rebuildBody()
     rebuildCaps()
+    rebuildCount += 1
   }
 
   function setEdges(xs) {
@@ -634,8 +643,14 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
   function setLevels(next) {
     let changed = false
     for (let i = 0; i < comp; i += 1) {
-      if (Math.abs(levels[i] - next[i]) > 0.002) changed = true
-      levels[i] = next[i]
+      const d = next[i] - levels[i]
+      // 慢化 + 死区：浮力模拟收敛前每帧会抖千分之几，直接照抄会让水面
+      // 逐帧重建几何、法线跟着跳 —— 在高刷屏（ProMotion 120Hz）上就是闪烁。
+      // 只追 35%，且差值小于 0.02 就不再动，视觉上完全看不出来。
+      if (Math.abs(d) > 0.02) {
+        levels[i] = levels[i] + d * 0.35
+        changed = true
+      }
     }
     if (changed) rebuild()
   }
@@ -820,6 +835,10 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
     },
     get hasFluid() {
       return !!fluid
+    },
+    // 调试用：累计重建次数（不进 UI）
+    get rebuildCount() {
+      return rebuildCount
     },
   }
 }
