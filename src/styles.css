@@ -598,9 +598,13 @@ body[data-beat='b5'] .copy-body p {
   .flood-btn,
   .replay {
     min-height: 44px;
+  }
+
+  /* 只有选项按钮需要垂直居中：文案是多行的，靠 min-height + 居中才不贴顶。
+     其余三类按钮内部是单行文字或图标组合，改 flex 会动到既有对齐，不动。 */
+  .quiz-opt {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
   }
 
   .lang-toggle {
@@ -911,15 +915,14 @@ html.intro-locked .seal {
     margin-top: 0.6rem;
   }
 
-  /* 横屏高度只有 375：第 7 屏的题目+选项放不进 38svh，面板放开 */
-  body[data-beat='b7'] .copy {
-    max-height: 72svh;
-  }
-
   /* 横屏时宽屏断点走的是桌面样式（无 max-height），文案面板会长到视口外。
-     这里统一兜一个上限，超出部分面板内部滚动。 */
+     这里统一兜一个上限，超出部分面板内部滚动。
+     要减掉底部安全区：box-sizing 是 border-box，padding 会从这 74svh 里扣，
+     不减的话 iOS 底部手势区会把正文挤成一两行。
+     第 7 屏在矮视口也吃这条 —— 74svh 已经大于窄屏的 62svh，不用再单独开一条。 */
   .copy {
-    max-height: 74svh;
+    max-height: calc(74svh - env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
