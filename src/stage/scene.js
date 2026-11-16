@@ -460,6 +460,8 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   let oceanBuilt = null
   // 折射预渲染的隔帧计数（见下面水面的那段）
   let refractPhase = 0
+  // 上一帧折射图对应的「相机 + 水位」签名：变了才重画
+  let lastRefractSig = ''
   // 折射用的「无水场景」：半分辨率就够了——水下本来就被水色压暗，
   // 高分辨率只是白花一次全场景绘制的开销。
   const waterSceneRT = new THREE.WebGLRenderTarget(512, 288, {
@@ -576,6 +578,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
     waterSceneRT.setSize(Math.max(1, Math.round(w * 0.6)), Math.max(1, Math.round(h * 0.6)))
     // 尺寸变了，上一张折射图的屏幕坐标对不上了，作废重画
     if (water) water.setSceneTexture(null)
+    lastRefractSig = ''
     camera.aspect = w / h
     camera.updateProjectionMatrix()
   }
@@ -590,6 +593,8 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
     parts,
     flood,
     caulk,
+    // 调试/验收用：水面的重建计数与水位状态（移动端闪烁排查用得到）
+    water,
     resize,
 
     enterBeat(i) {
@@ -713,10 +718,27 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
 
       // 水面折射：先把「不含水体」的场景渲进纹理，水面再按屏幕坐标采样它，
       // 于是水下那层木头是被折射、被水色吸收过的——这是「像水」的关键一步。
-      // 这一趟是把整个场景再画一遍（b5 时约 40 次 draw call），所以隔帧更新：
-      // 水面在动，但折射贴图差一帧完全看不出来，开销直接砍半。
-      refractPhase = (refractPhase + 1) % 2
-      if (water.mesh.visible && (refractPhase === 0 || !water.hasRefraction())) {
+      //
+      // 这一趟等于把整个场景再画一遍（b5 约 25 次 draw call）。原来按帧号隔帧更新，
+      // 但那样水色会在两套贴图之间逐帧交替 —— 60Hz 下不明显，ProMotion / 掉帧的
+      // 手机上就会被看成「水面在闪」。改成按「画面有没有变」决定：
+      // 相机或水位一动就重画，完全静止了才降到每 5 帧一次。
+      refractPhase = (refractPhase + 1) % 5
+      const refSig = water.mesh.visible
+        ? [
+            camera.position.x.toFixed(1),
+            camera.position.y.toFixed(1),
+            camera.position.z.toFixed(1),
+            // 船体自转（b1）不移动相机但改变画面，漏了它折射图会整片过时
+            shipGroup.rotation.y.toFixed(2),
+            waterSceneRT.width,
+            waterSceneRT.height,
+            dom ? dom.level.toFixed(2) : 'na',
+          ].join(',')
+        : 'off'
+      const refDirty = refSig !== lastRefractSig
+      if (water.mesh.visible && (refDirty || refractPhase === 0 || !water.hasRefraction())) {
+        lastRefractSig = refSig
         water.mesh.visible = false
         const prevRT = renderer.getRenderTarget()
         renderer.setRenderTarget(waterSceneRT)

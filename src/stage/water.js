@@ -145,10 +145,11 @@ void main() {
   vec3 rB = texture2D(uRipple, vUv2 * 5.4 + vec2(-uTime * 0.009, uTime * 0.014)).xyz * 2.0 - 1.0;
   vec2 vel = (texture2D(uVelocity, vUv2).xy) * uFluid;
 
+  // 法线扰动压到 0.30/0.16：原来 0.42/0.22 在移动端 GPU 上会让高光整片跳点
   vec3 N = normalize(vec3(
-    rA.x * 0.42 + rB.x * 0.22 + vel.x * 0.0065,
+    rA.x * 0.30 + rB.x * 0.16 + vel.x * 0.0045,
     1.0,
-    rA.y * 0.42 + rB.y * 0.22 + vel.y * 0.0065
+    rA.y * 0.30 + rB.y * 0.16 + vel.y * 0.0045
   ));
 
   float fres = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 3.0);
@@ -193,10 +194,12 @@ void main() {
   // 之前 0.08 + fres*0.88 反射占比过半，物理上那就是块玻璃。
   vec3 col = mix(below, sky, clamp(0.03 + fres * 0.55, 0.0, 0.9));
 
-  // 太阳高光
+  // 太阳高光：指数 220 → 110、强度 1.6 → 1.0。
+  // 220 次方的镜面在法线有微小扰动时就是一颗颗跳动的亮点，
+  // 桌面看不出来，手机上（尤其 DPR 3 采样更密）会被读成「水面在闪」。
   vec3 L = normalize(uSunDir);
-  float spec = pow(max(dot(R, L), 0.0), 220.0);
-  col += vec3(1.0, 0.96, 0.88) * spec * 1.6;
+  float spec = pow(max(dot(R, L), 0.0), 110.0);
+  col += vec3(1.0, 0.96, 0.88) * spec * 1.0;
 
   // 泡沫：染料浓度 + 波纹峰值，靠近浅滩（vDepthC≈0）更容易起泡
   float dye = texture2D(uDye, vUv2).r * uFluid;
@@ -307,6 +310,18 @@ void main() {
 `
 
 export function createWater({ floorY = -11.6, renderer = null, scene = null, camera = null } = {}) {
+  // 排查开关（真机 A/B 用）：?water=static 冻结所有逐帧动画与反射；
+  // ?water=off 直接不画水。目的是在无法开控制台的真机上定位「闪」来自哪一层。
+  const waterFlag = (() => {
+    try {
+      return new URLSearchParams(window.location.search).get('water') || ''
+    } catch {
+      return ''
+    }
+  })()
+  const staticWater = waterFlag === 'static'
+  const noWater = waterFlag === 'off'
+
   const ripple = makeRippleNormal()
   ripple.repeat.set(1, 1)
 
@@ -404,6 +419,11 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
     depthWrite: false,
     side: THREE.DoubleSide,
     clipping: true,
+    // 断面和水面在水线处共边：不偏一点，iOS 的深度精度下会互相抢，
+    // 表现为水线上一圈细密的闪点。让水体稳定压在水面之上。
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
   })
   const body = new THREE.Mesh(bodyGeo, bodyMat)
   body.name = 'water_body'
@@ -421,7 +441,8 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
   capGeo.setAttribute('color', new THREE.BufferAttribute(capCol, 3))
   const cap = new THREE.Mesh(capGeo, bodyMat)
   cap.name = 'water_cut'
-  cap.renderOrder = 3
+  // 与 body 同为透明件，给一个明确的先后，免得排序在移动端逐帧变化
+  cap.renderOrder = 4
   cap.frustumCulled = false
 
   const group = new THREE.Group()
@@ -432,6 +453,8 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
   let edges = [X_MIN, X_MAX]
   let levels = [floorY]
   let flows = [0]
+  // 几何重建次数：调参时用来确认「是不是每帧都在重建」（水面闪烁的头号嫌疑）
+  let rebuildCount = 0
   let blend = 0.01
   let comp = 1
   let elapsed = 0
@@ -617,6 +640,7 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
     rebuildSurface()
     rebuildBody()
     rebuildCaps()
+    rebuildCount += 1
   }
 
   function setEdges(xs) {
@@ -634,8 +658,14 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
   function setLevels(next) {
     let changed = false
     for (let i = 0; i < comp; i += 1) {
-      if (Math.abs(levels[i] - next[i]) > 0.002) changed = true
-      levels[i] = next[i]
+      const d = next[i] - levels[i]
+      // 慢化 + 死区：浮力模拟收敛前每帧会抖千分之几，直接照抄会让水面
+      // 逐帧重建几何、法线跟着跳 —— 在高刷屏（ProMotion 120Hz）上就是闪烁。
+      // 只追 35%，且差值小于 0.02 就不再动，视觉上完全看不出来。
+      if (Math.abs(d) > 0.02) {
+        levels[i] = levels[i] + d * 0.35
+        changed = true
+      }
     }
     if (changed) rebuild()
   }
@@ -700,7 +730,7 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
   }
 
   function update(dt) {
-    elapsed += dt
+    if (!staticWater) elapsed += dt
     surfaceUniforms.uTime.value = elapsed
     bodyUniforms.uTime.value = elapsed
     // 各舱水位差很小，取平均值当反射平面，误差看不出
@@ -712,7 +742,17 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
         lvlN += 1
       }
     }
-    if (lvlN > 0) renderReflection(lvlSum / lvlN)
+    if (lvlN > 0 && !staticWater) {
+      renderReflection(lvlSum / lvlN)
+    } else if (staticWater) {
+      // 反射每帧重画一张镜像视图，是「闪」的强嫌疑；静态模式下先关掉
+      surfaceUniforms.uHasRefl.value = 0
+    }
+
+    if (noWater) {
+      group.visible = false
+      return
+    }
     if (!fluid) return
 
     // 仍然在流动的舱持续补充扰动，避免水面「死掉」
@@ -820,6 +860,10 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
     },
     get hasFluid() {
       return !!fluid
+    },
+    // 调试用：累计重建次数（不进 UI）
+    get rebuildCount() {
+      return rebuildCount
     },
   }
 }
