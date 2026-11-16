@@ -748,6 +748,17 @@ body[data-beat='b5'] .copy-body p {
   }
 }
 
+/* 迁移视图比原来的术语清单高：桌面档面板是底部对齐的，不限高会从视口上方顶出去，
+   标题被切掉且看不出还能滚。给 b6 单独设一个上限，内部滚动。 */
+@media (min-width: 641px) {
+  body[data-beat='b6'] .copy {
+    max-height: calc(100svh - 7rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 /* ---------- 减少动效 ---------- */
 
 @media (prefers-reduced-motion: reduce) {
