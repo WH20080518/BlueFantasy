@@ -578,6 +578,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
     waterSceneRT.setSize(Math.max(1, Math.round(w * 0.6)), Math.max(1, Math.round(h * 0.6)))
     // 尺寸变了，上一张折射图的屏幕坐标对不上了，作废重画
     if (water) water.setSceneTexture(null)
+    lastRefractSig = ''
     camera.aspect = w / h
     camera.updateProjectionMatrix()
   }
@@ -724,7 +725,16 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       // 相机或水位一动就重画，完全静止了才降到每 5 帧一次。
       refractPhase = (refractPhase + 1) % 5
       const refSig = water.mesh.visible
-        ? `${camera.position.x.toFixed(1)},${camera.position.y.toFixed(1)},${camera.position.z.toFixed(1)},${dom ? dom.level.toFixed(2) : 'na'}`
+        ? [
+            camera.position.x.toFixed(1),
+            camera.position.y.toFixed(1),
+            camera.position.z.toFixed(1),
+            // 船体自转（b1）不移动相机但改变画面，漏了它折射图会整片过时
+            shipGroup.rotation.y.toFixed(2),
+            waterSceneRT.width,
+            waterSceneRT.height,
+            dom ? dom.level.toFixed(2) : 'na',
+          ].join(',')
         : 'off'
       const refDirty = refSig !== lastRefractSig
       if (water.mesh.visible && (refDirty || refractPhase === 0 || !water.hasRefraction())) {
