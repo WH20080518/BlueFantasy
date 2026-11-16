@@ -202,47 +202,254 @@ let lastInteractionBeat = -1
     el.floodUI.querySelector('.flood-switch').setAttribute('aria-label', t(ui.flood.groupAria))
   }
 
-  function renderTerms() {
-    el.termsList.innerHTML = ''
-    termWall.forEach((id) => {
-      const term = termById(id)
-      if (!term) return
-      const li = document.createElement('li')
-      const zh = document.createElement('span')
-      zh.className = 't-zh'
-      zh.textContent = term.zh
-      const type = document.createElement('span')
-      type.className = 't-type'
-      type.textContent = t(ui.termType[term.type] || { zh: term.type, en: term.type })
-      const en = document.createElement('span')
-      en.className = 't-en'
-      en.textContent = term.en
-      li.append(zh, type, en)
-      // 解释译要求「译名 + 一句解释」：有 note 时显示对应语种说明
-      if (term.note) {
-        const note = document.createElement('span')
-        note.className = 't-note'
-        note.textContent = t(term.note)
-        li.append(note)
-      }
-      el.termsList.appendChild(li)
-    })
+  // ---- b6 术语迁移视图（规格：docs/16-term-beat-spec.md） ----
+  // 有 migration 数据的词条做成 tab 面板，其余词条仍按原清单平铺。
+  let selectedTermId = null
 
-    // 窄屏折叠：默认只露前 4 条，其余点「展开全部」（桌面 CSS 里按钮不显示）
+  function termRow(term) {
+    const li = document.createElement('li')
+    const zh = document.createElement('span')
+    zh.className = 't-zh'
+    zh.textContent = term.zh
+    const type = document.createElement('span')
+    type.className = 't-type'
+    type.textContent = t(ui.termType[term.type] || { zh: term.type, en: term.type })
+    const en = document.createElement('span')
+    en.className = 't-en'
+    en.textContent = term.en
+    li.append(zh, type, en)
+    // 解释译要求「译名 + 一句解释」：有 note 时显示对应语种说明
+    if (term.note) {
+      const note = document.createElement('span')
+      note.className = 't-note'
+      note.textContent = t(term.note)
+      li.append(note)
+    }
+    return li
+  }
+
+  function renderTermList(ids) {
+    el.termsList.innerHTML = ''
+    ids.forEach((id) => {
+      const term = termById(id)
+      if (term) el.termsList.appendChild(termRow(term))
+    })
+  }
+
+  // 窄屏折叠：默认只露前 4 条，其余点「展开全部」（桌面 CSS 里按钮不显示）
+  function applyTermsFold() {
     const prev = el.termsTitle.nextElementSibling
     if (prev && prev.classList.contains('terms-more')) prev.remove()
     el.termsList.classList.remove('is-open')
-    if (el.termsList.children.length > 3) {
-      const more = document.createElement('button')
-      more.type = 'button'
-      more.className = 'terms-more'
-      more.textContent = t({ zh: '展开全部', en: 'Show all terms' })
-      more.addEventListener('click', () => {
-        el.termsList.classList.add('is-open')
-        more.remove()
-      })
-      el.termsTitle.after(more)
+    if (el.termsList.children.length <= 3) return
+    const more = document.createElement('button')
+    more.type = 'button'
+    more.className = 'terms-more'
+    more.textContent = t({ zh: '展开全部', en: 'Show all terms' })
+    more.addEventListener('click', () => {
+      el.termsList.classList.add('is-open')
+      more.remove()
+    })
+    el.termsTitle.after(more)
+  }
+
+  function mLabel(text) {
+    const span = document.createElement('span')
+    span.className = 'm-label'
+    span.textContent = text
+    return span
+  }
+
+  function mText(text) {
+    const span = document.createElement('span')
+    span.textContent = text
+    return span
+  }
+
+  function mNote(note) {
+    const span = document.createElement('span')
+    span.className = 'm-note'
+    span.textContent = t(note)
+    return span
+  }
+
+  // ✗ / ✓ 只是视觉标记，判定结论另给一段可读文本
+  function mMark(ok) {
+    const wrap = document.createElement('span')
+    wrap.className = ok ? 'm-mark is-ok' : 'm-mark is-bad'
+    const glyph = document.createElement('span')
+    glyph.setAttribute('aria-hidden', 'true')
+    glyph.textContent = ok ? '✓' : '✗'
+    const sr = document.createElement('span')
+    sr.className = 'sr-only'
+    sr.textContent = t(ok ? ui.migration.ok : ui.migration.fail)
+    wrap.append(glyph, sr)
+    return wrap
+  }
+
+  function migrationStep(cls, label, children, mark) {
+    const li = document.createElement('li')
+    li.className = `m-step ${cls}`
+    const value = document.createElement('div')
+    value.className = 'm-value'
+    children.forEach((c) => value.appendChild(c))
+    li.append(mLabel(label), value)
+    if (mark) li.appendChild(mark)
+    return li
+  }
+
+  function buildMigrationPanel(term) {
+    const m = term.migration
+    const panel = document.createElement('div')
+    panel.className = 'term-panel'
+    panel.id = `term-panel-${term.id}`
+    panel.setAttribute('role', 'tabpanel')
+    panel.setAttribute('aria-labelledby', `term-tab-${term.id}`)
+    panel.tabIndex = 0
+
+    const ol = document.createElement('ol')
+    ol.className = 'migration'
+    ol.appendChild(migrationStep('is-origin', t(ui.migration.origin), [mText(t(m.origin))]))
+    ol.appendChild(migrationStep(
+      'is-literal',
+      t(ui.migration.literal),
+      [mText(m.literal.text), mNote(m.literal.note)],
+      mMark(false),
+    ))
+    ol.appendChild(migrationStep(
+      'is-explained',
+      t(ui.migration.explained),
+      [mText(m.explained.text), mNote(m.explained.note)],
+      mMark(true),
+    ))
+
+    const lost = document.createElement('p')
+    lost.className = 'm-lost'
+    lost.append(mLabel(t(ui.migration.lost)), mText(t(m.lost)))
+
+    panel.append(ol, lost)
+    return panel
+  }
+
+  function renderTerms() {
+    const migratable = termWall
+      .map((id) => termById(id))
+      .filter((term) => term && term.migration)
+    const restIds = termWall.filter((id) => !migratable.some((tm) => tm.id === id))
+
+    el.termsUI.querySelectorAll('.term-panel, .terms-rest, .terms-rest-title').forEach((n) => n.remove())
+    el.termsList.removeAttribute('role')
+    el.termsList.removeAttribute('aria-label')
+
+    // 一个迁移词条都没有时，退回原来的清单样式
+    if (!migratable.length) {
+      renderTermList(termWall)
+      applyTermsFold()
+      return
     }
+
+    if (!migratable.some((tm) => tm.id === selectedTermId)) selectedTermId = migratable[0].id
+
+    el.termsList.innerHTML = ''
+    el.termsList.setAttribute('role', 'tablist')
+    el.termsList.setAttribute('aria-label', t(ui.termsTitle))
+    migratable.forEach((term) => {
+      const li = document.createElement('li')
+      li.setAttribute('role', 'presentation')
+      const tab = document.createElement('button')
+      tab.type = 'button'
+      tab.className = 'term-tab'
+      tab.id = `term-tab-${term.id}`
+      tab.setAttribute('role', 'tab')
+      tab.setAttribute('aria-controls', `term-panel-${term.id}`)
+      tab.textContent = term.zh
+      tab.addEventListener('click', () => selectTerm(term.id))
+      li.appendChild(tab)
+      el.termsList.appendChild(li)
+    })
+
+    // renderTerms 会随切屏和切语言反复调用，先摘掉旧监听，避免叠加
+    el.termsList.removeEventListener('keydown', onTermKeydown)
+    el.termsList.addEventListener('keydown', onTermKeydown)
+
+    const panelHost = document.createElement('div')
+    panelHost.className = 'term-panel-host'
+    el.termsList.after(panelHost)
+
+    if (restIds.length) {
+      const title = document.createElement('p')
+      title.className = 'terms-rest-title'
+      title.textContent = t(ui.migration.others)
+      const rest = document.createElement('ul')
+      rest.className = 'terms-rest'
+      restIds.forEach((id) => {
+        const term = termById(id)
+        if (term) rest.appendChild(termRow(term))
+      })
+      panelHost.after(title, rest)
+    }
+
+    syncTermTabs()
+    selectTerm(selectedTermId)
+  }
+
+  function syncTermTabs() {
+    const tabs = [...el.termsList.querySelectorAll('[role="tab"]')]
+    tabs.forEach((tab) => {
+      const on = tab.id === `term-tab-${selectedTermId}`
+      tab.setAttribute('aria-selected', String(on))
+      tab.tabIndex = on ? 0 : -1
+      tab.classList.toggle('is-active', on)
+    })
+  }
+
+  function selectTerm(id, { focus = false } = {}) {
+    const term = termById(id)
+    if (!term || !term.migration) return
+    selectedTermId = id
+    syncTermTabs()
+    const host = el.termsUI.querySelector('.term-panel-host')
+    if (!host) return
+    const prev = host.querySelector('.term-panel')
+    const panel = buildMigrationPanel(term)
+    if (prev) prev.replaceWith(panel)
+    else host.appendChild(panel)
+    if (focus) {
+      const tab = el.termsUI.querySelector(`#term-tab-${id}`)
+      if (tab) tab.focus()
+    }
+    if (typeof handlers.onTermSelect === 'function') handlers.onTermSelect(id)
+  }
+
+  function onTermKeydown(e) {
+    const tabs = [...el.termsList.querySelectorAll('[role="tab"]')]
+    if (!tabs.length) return
+    const current = tabs.findIndex((tab) => tab.id === `term-tab-${selectedTermId}`)
+    let next = null
+    if (e.key === 'ArrowRight') next = (current + 1) % tabs.length
+    else if (e.key === 'ArrowLeft') next = (current - 1 + tabs.length) % tabs.length
+    else if (e.key === 'Home') next = 0
+    else if (e.key === 'End') next = tabs.length - 1
+    else if (e.key === 'Escape') {
+      const panel = el.termsUI.querySelector('.term-panel')
+      if (panel) panel.hidden = true
+      tabs[current]?.focus()
+      e.preventDefault()
+      return
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      const panel = el.termsUI.querySelector('.term-panel')
+      if (panel && panel.hidden) {
+        panel.hidden = false
+        e.preventDefault()
+      }
+      return
+    } else {
+      return
+    }
+    e.preventDefault()
+    const tab = tabs[next]
+    if (!tab) return
+    selectTerm(tab.id.replace('term-tab-', ''), { focus: true })
   }
 
   function renderCaulkUI() {
