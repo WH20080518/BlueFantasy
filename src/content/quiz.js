@@ -5,7 +5,7 @@ export const quizCopy = {
   title: { zh: '三问', en: 'Three questions' },
   lead: {
     zh: '七屏看完了。用三题确认一下：这艘船到底靠什么连接。',
-    en: 'Seven screens in. Three questions to check what actually holds the ship together.',
+    en: 'Seven passages in. Three questions to check what actually holds the ship together.',
   },
   progress: { zh: '第 {n} / 3 题', en: 'Question {n} / 3' },
   right: { zh: '对了', en: 'Right' },
@@ -30,7 +30,7 @@ export const questions = [
       { zh: '对，全靠榫卯咬合', en: 'Yes — joinery alone' },
       {
         zh: '不对：榫卯定位，铁钉或木钉加固，再用桐油灰拌麻丝捻缝',
-        en: 'No: joinery locates, nails lock, putty and hemp caulk the seam',
+        en: 'No: joinery locates, nails lock, tung-oil putty and hemp caulk the seam',
       },
       { zh: '只有内河船用钉，海船不用', en: 'Only river boats used nails' },
     ],
