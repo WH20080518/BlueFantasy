@@ -158,6 +158,8 @@ const overlay = createOverlay({
     onReplay() {
       window.scrollTo({ top: 0, behavior: reducedMotion() ? 'auto' : 'smooth' })
     },
+    // b6 迁移视图切换词条时调用；3D 零件高亮按 docs/16 §8 推迟，先留空实现
+    onTermSelect() {},
   },
 })
 

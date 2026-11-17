@@ -748,6 +748,17 @@ body[data-beat='b5'] .copy-body p {
   }
 }
 
+/* 迁移视图比原来的术语清单高：桌面档面板是底部对齐的，不限高会从视口上方顶出去，
+   标题被切掉且看不出还能滚。给 b6 单独设一个上限，内部滚动。 */
+@media (min-width: 641px) {
+  body[data-beat='b6'] .copy {
+    max-height: calc(100svh - 7rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 /* ---------- 减少动效 ---------- */
 
 @media (prefers-reduced-motion: reduce) {
@@ -1136,6 +1147,216 @@ body.is-fallback .seal {
 .terms-more:focus-visible {
   outline: 2px solid var(--tung, #c08a4a);
   outline-offset: 2px;
+}
+
+/* ---------- b6 术语迁移视图（规格：docs/16-term-beat-spec.md） ---------- */
+
+/* 选择条：只列出有 migration 数据的词条 */
+.terms-list[role="tablist"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.7rem;
+}
+
+.terms-list[role="tablist"] li {
+  padding: 0;
+  border-top: 0;
+}
+
+.term-tab {
+  appearance: none;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1;
+  color: var(--mist);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 0.55rem 0.75rem;
+  min-height: 34px;
+  cursor: pointer;
+}
+
+.term-tab.is-active {
+  color: var(--paper);
+  border-color: var(--tung);
+  background: rgba(192, 138, 74, 0.12);
+}
+
+.term-tab:focus-visible {
+  outline: 2px solid var(--tung);
+  outline-offset: 2px;
+}
+
+.term-panel {
+  border-top: 1px solid var(--line);
+  padding-top: 0.5rem;
+  animation: term-fade 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@keyframes term-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.migration {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: mstep;
+}
+
+.m-step {
+  counter-increment: mstep;
+  display: grid;
+  grid-template-columns: 5.6rem 1fr auto;
+  gap: 0.15rem 0.8rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.m-step:first-child {
+  border-top: 0;
+  padding-top: 0.2rem;
+}
+
+.m-label {
+  font-size: 0.76rem;
+  letter-spacing: 0.1em;
+  color: var(--mist);
+}
+
+.m-step .m-label::before {
+  content: counter(mstep) ". ";
+  opacity: 0.6;
+}
+
+.m-step:not(.is-origin) .m-label::after {
+  content: " ↓";
+  opacity: 0.6;
+}
+
+.m-value {
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.m-note {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--paper);
+  opacity: 0.85;
+}
+
+.m-mark {
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.m-mark.is-bad {
+  color: var(--cinnabar);
+}
+
+.m-mark.is-ok {
+  color: var(--tung);
+}
+
+.m-lost {
+  display: grid;
+  grid-template-columns: 5.6rem 1fr;
+  gap: 0.15rem 0.8rem;
+  margin: 0;
+  padding: 0.6rem 0 0.2rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.86rem;
+  line-height: 1.6;
+  color: var(--paper);
+}
+
+.terms-rest-title {
+  margin: 0.9rem 0 0.4rem;
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  color: var(--mist);
+}
+
+.terms-rest {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: 0.5rem 1.25rem;
+}
+
+.terms-rest li {
+  padding: 0.45rem 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.terms-rest .t-zh {
+  font-weight: 600;
+}
+
+.terms-rest .t-en {
+  display: block;
+  color: var(--mist);
+  font-style: italic;
+  font-size: 0.84rem;
+}
+
+.terms-rest .t-note {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--paper);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  opacity: 0.85;
+}
+
+.terms-rest .t-type {
+  margin-left: 0.5em;
+}
+
+@media (max-width: 640px) {
+  .m-step,
+  .m-lost {
+    grid-template-columns: 1fr;
+  }
+
+  .m-mark {
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  /* 选择条可横向滚动，不撑破面板 */
+  .terms-list[role="tablist"] {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+    scrollbar-width: none;
+  }
+
+  .terms-list[role="tablist"]::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .term-panel {
+    animation: none;
+  }
 }
 
 @media (max-width: 640px) {

@@ -194,6 +194,17 @@ export const ui = {
     直译: { zh: '直译', en: 'literal' },
     解释译: { zh: '解释译', en: 'explained' },
   },
+  // b6 迁移视图的标签（规格见 docs/16-term-beat-spec.md）
+  migration: {
+    origin: { zh: '原词', en: 'Original' },
+    literal: { zh: '直译', en: 'Literal' },
+    explained: { zh: '解释译', en: 'Explained' },
+    lost: { zh: '丢掉了什么', en: 'What is lost' },
+    fail: { zh: '直译不成立', en: 'The literal rendering does not work' },
+    ok: { zh: '通行译法', en: 'Established rendering' },
+    others: { zh: '其他术语', en: 'Other terms' },
+    collapse: { zh: '收起迁移视图', en: 'Collapse the migration view' },
+  },
   replay: { zh: '重新看一遍', en: 'Watch again' },
   disclaimer: {
     zh: '结构示意：比例与节点形制经过简化，不代表某一艘沉船的实测复原。',
