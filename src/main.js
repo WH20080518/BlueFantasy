@@ -9,7 +9,10 @@ import { introCopy } from './content/intro.js'
 
 const base = import.meta.env.BASE_URL
 const params = new URLSearchParams(window.location.search)
-const no3d = params.has('no3d')
+// ?no3d 只看存在与否会把 no3d=0 也当成「关 3D」，与 docs/12 §3 的录制脚本冲突。
+// 约定：无值、空值、1/true/yes 视为关闭 3D；0/false/no 视为正常模式。
+const no3dParam = params.get('no3d')
+const no3d = no3dParam !== null && !['0', 'false', 'no'].includes(no3dParam.trim().toLowerCase())
 const reducedMQ = window.matchMedia('(prefers-reduced-motion: reduce)')
 const reducedMotion = () => reducedMQ.matches
 

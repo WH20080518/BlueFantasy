@@ -596,7 +596,8 @@ body[data-beat='b5'] .copy-body p {
   .quiz-opt,
   .caulk-step,
   .flood-btn,
-  .replay {
+  .replay,
+  .term-tab {
     min-height: 44px;
   }
 
@@ -609,11 +610,11 @@ body[data-beat='b5'] .copy-body p {
 
   .lang-toggle {
     min-width: 44px;
-    min-height: 40px;
+    min-height: 44px;
   }
 
   .intro-mode-btn {
-    min-height: 38px;
+    min-height: 44px;
   }
 }
 
