@@ -23,7 +23,7 @@
 | `treenail` | `treenail` | 木钉 | 家族规则 |
 | `joint_tenon` / `joint_mortise` | `tenon` / `mortise` | 榫头 / 卯眼 | 显式映射 |
 
-注：占位几何目前只建了 3 道隔舱板，`bulkhead_04..12` 要等真 GLB 到位才会被点到。解析先做好，模型一到不用改代码。
+注：占位几何只建了 3 道隔舱板，真 GLB（已交付）含 `bulkhead_01..12`；3D 模式下 12 道都可点到，2D 降级走 SVG。
 
 ## 2. 浮层四类文字
 
