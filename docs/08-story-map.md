@@ -108,9 +108,9 @@
 ## 5. Beat 4 · 水密隔舱
 
 - **滚动**：45% – 60%
-- **画面**：船体剖切，露出 3 道隔舱板，船体被分成 4 段可见舱室。
+- **画面**：船体剖切，露出 12 道隔舱板，船体被分成 13 段舱室。
 - **交互**：点击某道隔舱板 → 该舱高亮，标注舱名/序号。
-- **依赖资产**：`bulkhead_01..03`（T05）。**无模型时**：SVG 俯视剖面。
+- **依赖资产**：`bulkhead_01..12`（T05）。**无模型时**：SVG 俯视剖面。
 
 **中文**
 
@@ -126,7 +126,7 @@
 > **body** Transverse bulkheads cut the hull into compartments that do not connect.
 > **body** They carry cargo — and they decide whether the ship still floats after it is holed.
 
-- **待核**：隔舱数量在本作品里只展示 3 道，属简化示意。不要写成「这艘船只有 3 个舱」。
+- **已定**：页面按实船 12 道隔舱板建模（`parts.json` 已含 01–12）。不再写「只展示 3 道」的简化说明；仍不要写成「这艘船只有 3 个舱」。2026-11-16 订正。
 
 ---
 
