@@ -288,6 +288,8 @@ function applyViewMode() {
       if (stageFailReason) b.title = stageFailReason
     }
   })
+  // 2D 时停掉 3D 渲染链；切回 3D 再恢复（stage 可能还没就绪，用可选链）
+  if (stage3d) stage3d.setRunning(viewMode === '3d')
   if (viewMode === '2d') {
     useFallback()
   } else if (fallback) {
@@ -446,6 +448,8 @@ if (!no3d && webglAvailable()) {
     .then((stage) => {
       stage3d = stage
       stage3d.resize()
+      // 开场时用户可能已经选了 2D：先按当前模式设一次，别让它空跑
+      stage3d.setRunning(viewMode === '3d')
       if (currentBeat >= 0) stage3d.enterBeat(currentBeat)
       // 只在 dev 暴露调试句柄：拾取/可见性出问题时可以直接在控制台查，
       // 不用靠截图猜。
@@ -514,7 +518,7 @@ function frame(now) {
   if (i !== currentBeat) onBeat(i)
   overlay.setProgress(p)
 
-  if (stage3d) {
+  if (stage3d && viewMode === '3d') {
     stage3d.update(dt, i, lt, blend)
     positionLabel()
   }

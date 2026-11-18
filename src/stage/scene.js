@@ -542,6 +542,12 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
     bilgeLight.intensity = on ? 2.4 : 0
     // 隔舱材质换过实例，flood 里缓存的引用要重新登记，否则淡出作用在旧材质上
     flood.rebindBulkheads(bulkheadGroups())
+    // 压顶条是后加的合并网格，不在 CUT_NODES 里：这里跟着剖切面一起开关，
+    // 否则模型先加载时它切不到，后加载时离开剖切又留着裁剪面
+    if (bulkheadCaps) {
+      bulkheadCaps.material.clippingPlanes = on ? [cutPlane] : null
+      bulkheadCaps.material.needsUpdate = true
+    }
   }
 
   // 已脱离场景的占位网格：还原无从谈起，直接 dispose 掉挂在它们上面的克隆材质
@@ -564,6 +570,8 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
 
   let beatIndex = 0
   let spin = 0
+  // 由外层按显示模式控制：2D 时停掉整条渲染链（绘制、反射、流体都不跑）
+  let running = true
   let callsWarned = false
   // 真模型接入后统计一次网格数，给 draw call 阈值当基线
   let meshCount = 0
@@ -598,6 +606,10 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
     // 调试/验收用：水面的重建计数与水位状态（移动端闪烁排查用得到）
     water,
     resize,
+    // 显示模式切换用：false 时 update() 立即返回，3D 不再占用 GPU
+    setRunning(on) {
+      running = !!on
+    },
 
     enterBeat(i) {
       const prev = beats[beatIndex]
@@ -618,6 +630,8 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
 
     // progress 全局 0..1；i 当前 beat；lt beat 内进度；blend 朝下一 beat 的相机混合
     update(dt, i, lt, blend) {
+      // 2D 模式下主循环仍会调到这里：直接返回，别让隐藏的 3D 继续算洪水/反射/流体
+      if (!running) return
       const beat = beats[i]
       const next = beats[i + 1]
 
