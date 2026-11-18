@@ -384,7 +384,8 @@ function applyInitialLocation() {
   const beat = beats[i]
   const mid = (beat.progress[0] + beat.progress[1]) / 2
   const max = document.documentElement.scrollHeight - vhBaseline
-  if (window.__dlLog !== false) console.info("[deep] max=" + max)
+  // 调试用：只在开发构建里打，生产控制台不该出现这条
+  if (import.meta.env.DEV && window.__dlLog !== false) console.info('[deep] max=' + max)
   if (max > 0) window.scrollTo({ top: Math.round(max * mid), behavior: 'auto' })
 }
 /* ---------- 启动 ---------- */
