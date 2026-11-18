@@ -1,38 +1,99 @@
 // 降级：?no3d=1 或 WebGL 不可用 → 隐藏 canvas，每个 beat 显示对应 SVG。
-// SVG 用 <img loading="lazy">，不 inline。交互按钮由 overlay 在 fallbackMode 下禁用。
+// 双缓冲交叉淡入：两张图叠在同一个 stage 里换源，滚动再快也不会闪一下白底。
+// 动效只碰 opacity / transform，且整体尊重 prefers-reduced-motion。
 
 export function initFallback({ stageEl, img, base }) {
   stageEl.classList.add('is-fallback')
   // 纸面主题：整页切浅色，和 SVG 自带的纸底对齐
   document.body.classList.add('is-fallback')
-  img.hidden = false
 
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+  const back = document.createElement('img')
+  back.className = 'stage-fallback'
+  back.alt = ''
+  back.decoding = 'async'
+  back.setAttribute('aria-hidden', 'true')
+
+  img.hidden = false
+  img.classList.add('is-on')
+  img.after(back)
+
+  let front = img
+  let spare = back
+  let srcNow = img.getAttribute('src') || ''
+  let token = 0
+
+  const swapTo = (next, src, alt) => {
+    // 减少动效时 next 就是当前层：原地换源，不做过场
+    if (next === front) {
+      front.src = src
+      front.alt = alt
+      front.removeAttribute('aria-hidden')
+      front.classList.add('is-on')
+      return
+    }
+    next.src = src
+    next.alt = alt
+    next.removeAttribute('aria-hidden')
+    front.setAttribute('aria-hidden', 'true')
+    // 层级靠 CSS 的 z-index 决定；不在这里重排 DOM，否则元素被重新挂载会吃掉过渡
+    next.classList.add('is-on')
+    front.classList.remove('is-on')
+    front.alt = ''
+    const old = front
+    front = next
+    spare = old
+  }
 
   return {
     setBeat(beat, lang) {
       const src = `${base}${beat.fallback}`
-      img.alt = beat.stageLabel[lang]
+      const alt = beat.stageLabel[lang]
 
-      // 同一张不重复切换，避免抖动时反复闪烁
-      if (img.getAttribute('src') === src) return
+      // 同一张不重复切换：只更新 alt，避免滚动抖动时反复过场
+      if (src === srcNow) {
+        front.alt = alt
+        return
+      }
+      srcNow = src
 
+      // 减少动效：直接换源，不做交叉淡入
       if (reduced.matches) {
-        img.src = src
+        // 作废在途的交叉淡入回调，否则它们可能把更旧的图推上屏
+        token++
+        swapTo(front, src, alt)
         return
       }
 
-      // 淡出 → 换源 → 解码完成再淡入（200ms 过渡，CSS 里定义）
-      img.style.opacity = '0'
-      img.src = src
-      const show = () => {
-        img.style.opacity = '1'
+      const next = spare
+      const my = ++token
+      next.src = src
+      // src 属性读回来是绝对 URL，留一份用于比对「这一层还是不是那张图」
+      const expected = next.src
+
+      // 解码完成再上屏，避免 SVG 还没画出来就开始淡入
+      const reveal = () => {
+        if (my !== token) return
+        requestAnimationFrame(() => {
+          // 迟到的一帧可能已被更晚的请求取代，或该层已被复用加载别的图
+          if (my !== token || next.src !== expected) return
+          swapTo(next, src, alt)
+        })
       }
-      if (typeof img.decode === 'function') {
-        img.decode().then(() => requestAnimationFrame(show)).catch(show)
+      if (typeof next.decode === 'function') {
+        next.decode().then(reveal).catch(reveal)
       } else {
-        img.addEventListener('load', show, { once: true })
+        next.addEventListener('load', reveal, { once: true })
       }
+    },
+
+    hide() {
+      token++
+      img.hidden = true
+      img.classList.remove('is-on')
+      back.classList.remove('is-on')
+      back.remove()
     },
   }
 }

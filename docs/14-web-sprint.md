@@ -129,9 +129,11 @@
 2. 打开 `models/parts.json`，核对节点名与单位。当前 23 个零件，`"unit": "m"`；新增零件（例如 `bulkhead_04`）在这里补 `{ "name": "bulkhead_04", "assembled": [-4.64,0,0], "exploded": [-4.64,0,6] }`，然后跑 `npm run parts:sync` 同步到 `public/models/parts.json`。
    节点名必须和 GLB 完全一致：`ship_deck`、`nail_set`、`caulk_layer` 这三个最容易漏，漏了对应零件会停在占位几何上。
 3. 跑 `npm run check:parts`。节点名不在白名单、`assembled`/`exploded` 不是 3 个数字、名称重复，都会逐条报错并退出 1。
-4. 跑 `npm run check:model`。默认上限 60,000 面、5 MB，超标会打印具体数值并退出 1。当前模型实测：19,350 面 / 0.75 MB / 4 材质 / 28 图元。超标先减面或换 Draco，不要直接调高阈值。
+4. 跑 `npm run check:model`。默认上限 60,000 面、5 MB，超标会打印具体数值并退出 1。当前模型实测：38,678 面 / 2.32 MB / 4 材质 / 28 图元（2026-11-17 资产打磨后；上限仍是 60,000 面 / 5 MB）。超标先减面或换 Draco，不要直接调高阈值。
 5. `npm run dev` 打开页面。零件被替换说明成功；看不到就开 Console 看 `[stage]` 开头的日志（`GLB 已接入 N 个零件`）。删掉 `ship.glb` 刷新，应回到占位几何且不白屏。
 
 > 2026-11-14 用当前 `ship.glb` 走通：`check:parts` 输出 23 个零件、unit=m，`check:model` 输出 19,350 面并判定预算通过。
+>
+> 2026-11-17 资产打磨（#41）后复跑：23 个零件、38,678 面 / 2.32 MB，预算通过；节点名与材质名跟改前完全一致，`bindRealMeshes` 与 `beats.js` 不需要改。甲板新增烘焙法线贴图 `wood_deck_normal`。
 
 > 12 道隔舱板的模型：`parts.json` 里写满 12 条，`scene.js` 会为占位几何里没有的隔舱补建 Group，否则 GLB 里多出来的节点会被静默丢掉。

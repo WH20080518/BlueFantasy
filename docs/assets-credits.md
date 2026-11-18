@@ -7,6 +7,7 @@
 | 素材 | 位置 | 来源 | 授权 |
 |---|---|---|---|
 | 船体模型 `ship.glb` | `public/models/` | 队内用 Blender 建模，按 `docs/07-modeling-brief.md` 的节点名与面数预算制作 | 自制，随作品提交 |
+| 甲板法线 `wood_deck_normal` | `ship.glb` 内嵌 | 队内用 Blender 从甲板贴图的凹凸烘焙（1024²），不是外部素材 | 自制 |
 | 零件装配表 `parts.json` | `models/` | 队内编写 | 自制 |
 | 占位几何 | `src/stage/placeholder.js` | 代码生成，仅在 GLB 未加载时使用 | 自制 |
 | 背景水纹 `sea-lines.svg` | `src/assets/bg/` | 队内绘制 | 自制 |

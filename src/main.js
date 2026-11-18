@@ -273,14 +273,16 @@ function useFallback() {
 
 /* ---------- 开场 ---------- */
 
-let viewMode = !no3d && webglAvailable() ? '3d' : '2d'
+const webglOk = !no3d && webglAvailable()
+let viewMode = webglOk ? '3d' : '2d'
 
 function applyViewMode() {
-  // three 加载失败过，3D 就回不去了，直接锁在 2D
-  if (viewMode === '3d' && threeFailed) viewMode = '2d'
+  // 浏览器本来就撑不起 WebGL2，或者 three 加载/初始化失败过：3D 就回不去了，直接锁在 2D
+  const can3d = webglOk && !threeFailed
+  if (viewMode === '3d' && !can3d) viewMode = '2d'
   document.querySelectorAll('.intro-mode-btn').forEach((b) => {
     b.classList.toggle('is-active', b.dataset.mode === viewMode)
-    if (b.dataset.mode === '3d' && threeFailed) {
+    if (b.dataset.mode === '3d' && !can3d) {
       b.disabled = true
       b.setAttribute('aria-disabled', 'true')
       if (stageFailReason) b.title = stageFailReason
@@ -289,10 +291,10 @@ function applyViewMode() {
   if (viewMode === '2d') {
     useFallback()
   } else if (fallback) {
+    fallback.hide()
     fallback = null
     stageEl.classList.remove('is-fallback')
     document.body.classList.remove('is-fallback')
-    fallbackImg.hidden = true
     overlay.setFallbackMode(false)
   }
 }

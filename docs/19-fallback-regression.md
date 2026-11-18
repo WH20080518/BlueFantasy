@@ -75,8 +75,42 @@
 
 注意：调试时若复用同一个标签页来回跳转，Chrome 会把上一次的滚动位置带回来（本次测到过 `324` 的假象），判断这类问题要用**新标签页**或先 `Page.bringToFront`。
 
+## 5.5 2D 动效（2026-11-17）
+
+降级模式原来是「单张 `<img>` 换 src + 200ms 淡入」，快速滚动时会有一次闪白，而且换图前没有解码。现在改成双缓冲交叉淡入：
+
+- 两张 `.stage-fallback` 叠在同一个 stage 里，`is-on` 是当前层（`z-index: 2`），另一张在下面等下一张图；
+- 换 beat 时先把图挂到隐藏层，`decode()` 完成后的下一帧才切 `is-on`，可见层永远是有内容的一张；
+- 动效只碰 `opacity`（360ms，`cubic-bezier(.22,1,.36,1)`）和 `transform`（`scale(1.012) → none`，720ms），不触发重排；
+- `prefers-reduced-motion: reduce` 时原地换源，不做过场；
+- 同一张 SVG（b6 / b7 都用 `e1`）只更新 `alt`，不重复过场。
+
+回归脚本 `outputs/bf-pr41/check-2d.mjs`（不进仓库，CDP 驱动）：1440×900 逐屏滚过 7 个 beat，读每个 `.stage-fallback` 的 `opacity / src / alt / aria-hidden`，再验减少动效与 375 宽。
+
+| 项 | 结果 |
+|---|---|
+| 过渡中间态 | b2–b6 在 110ms 处都能读到 0.36–0.64 的中间值，交叉淡入确实发生 |
+| 稳定态 | 每个 beat 恰好一层 `is-on`，`src` 与 `beats.js` 对齐，`opacity = 1` |
+| 无障碍 | 非可见层 `aria-hidden="true"` 且 `alt` 为空；可见层 `alt` 随语言更新 |
+| 减少动效 | 计算样式 `transition-property: none` / `duration: 0s`，仍只有一层可见 |
+| 375 宽 | `scrollWidth 375 = innerWidth 375`，无横向滚动 |
+
+新发现并修掉的问题：一开始用 `appendChild` 把入场层挪到 DOM 末尾来实现「在上面」，结果元素被重新挂载吃掉了 `opacity` 过渡，新图直接硬切。改成静态 `z-index` 分层后才恢复成真正的交叉淡入。
+
 ## 6. 本次未覆盖
 
 - 真机（iOS Safari / Android Chrome）的触摸拾取与地址栏收缩（C 的 `mobile-checklist.md` 已列，仍待人工）
 - `#lang-toggle` 命中区 26 px（11-14 已记录，待 C 修）
-- 无 WebGL 但非 `?no3d=1` 的自动降级路径（探针逻辑未改，未单独触发）
+
+### 2026-11-17 补测：无 WebGL2 的自动降级
+
+用 CDP `Page.addScriptToEvaluateOnNewDocument` 抹掉 `window.WebGL2RenderingContext` 再打开首页（不带 `?no3d=1`），验证探针路径：
+
+| 检查 | 结果 |
+|---|---|
+| 开场页 3D 按钮 | `disabled`、`aria-disabled="true"`，2D 为选中态 |
+| 降级原因提示 | 3D 按钮 `title` 为「这个浏览器没有 WebGL2（three 0.170 起只支持 WebGL2）」 |
+| 进站后 | 自动进 2D，stage 两层 `.stage-fallback`、一层可见，canvas `display: none` |
+| 控制台 | 无报错 |
+
+顺带修掉一处：原来只有「three 加载失败」才会给 3D 按钮写 `title`，浏览器本来就没有 WebGL2 时按钮被禁用却不说明原因。现在把「初始探测就不可用」并进 `can3d` 判断，两种情况都会带原因。
