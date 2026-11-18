@@ -60,6 +60,8 @@ export function initFallback({ stageEl, img, base }) {
 
       // 减少动效：直接换源，不做交叉淡入
       if (reduced.matches) {
+        // 作废在途的交叉淡入回调，否则它们可能把更旧的图推上屏
+        token++
         swapTo(front, src, alt)
         return
       }
@@ -67,12 +69,15 @@ export function initFallback({ stageEl, img, base }) {
       const next = spare
       const my = ++token
       next.src = src
+      // src 属性读回来是绝对 URL，留一份用于比对「这一层还是不是那张图」
+      const expected = next.src
 
       // 解码完成再上屏，避免 SVG 还没画出来就开始淡入
       const reveal = () => {
         if (my !== token) return
         requestAnimationFrame(() => {
-          if (my !== token) return
+          // 迟到的一帧可能已被更晚的请求取代，或该层已被复用加载别的图
+          if (my !== token || next.src !== expected) return
           swapTo(next, src, alt)
         })
       }
