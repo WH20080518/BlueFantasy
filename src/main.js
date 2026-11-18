@@ -202,12 +202,28 @@ function onBeat(i) {
 
 /* ---------- 指针与键盘 ---------- */
 
+// 拾取等 pointerup 再做：画布允许纵向平移（touch-action: pan-y），
+// 手指从画布起手滑页时 pointerdown 已触发，立即拾取会把滚动当点击。
+let pickOrigin = null
 canvas.addEventListener('pointerdown', (e) => {
   if (!stage3d) return
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+  pickOrigin = { id: e.pointerId, x: e.clientX, y: e.clientY }
+})
+
+function endPick(e) {
+  const o = pickOrigin
+  pickOrigin = null
+  if (!o || o.id !== e.pointerId || !stage3d) return
+  // 拖动超过 10px 视为滚动手势，不选中零件
+  if (Math.hypot(e.clientX - o.x, e.clientY - o.y) > 10) return
   const beat = beats[currentBeat]
   if (!beat || !beat.pick) return
   onPick(stage3d.pickAt(e.clientX, e.clientY))
-})
+}
+
+window.addEventListener('pointerup', endPick)
+window.addEventListener('pointercancel', () => { pickOrigin = null })
 
 stageEl.addEventListener('keydown', (e) => {
   // 只在舞台本身有焦点时接管键盘；焦点在内部按钮上时放行，避免抢走键盘导航

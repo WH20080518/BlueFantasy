@@ -446,7 +446,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
 
   const parts = new Parts(nodes)
   // 水面：一整片按舱分格的高度场，水位由 flood 的每个舱控制
-  const water = createWater({ floorY: -11.6, renderer, scene, camera })
+  const water = createWater({ floorY: -11.6, renderer, scene, camera, reducedMotion })
   shipGroup.add(water.mesh)
   // b4（单舱进水）用 three 官方 Water：真实反射 + 折射通道。
   // b5 是 13 舱同淹，每个实例两次全场景渲染撑不住，仍用手写方案。
@@ -469,7 +469,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
     magFilter: THREE.LinearFilter,
     depthBuffer: true,
   })
-  const flood = createFlood({ ship: shipGroup, water, bulkheads, floorY: -11.6, topY: 5.2 })
+  const flood = createFlood({ ship: shipGroup, water, bulkheads, floorY: -11.6, topY: 5.2, reducedMotion })
   const caulk = createCaulk(
     { upper: seam.refs.upper, lower: seam.refs.lower, marker: seam.refs.marker, caulk: seam.refs.caulk, nails: seam.nails, openY: seam.refs.openY, closedY: seam.refs.closedY },
     reducedMotion,

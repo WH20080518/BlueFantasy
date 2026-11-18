@@ -25,10 +25,10 @@
 | 构建 | Vite | 启动快、静态产物简单、生态成熟 |
 | 语言 | 原生 JavaScript（ES Module） | 页面规模不需要框架；减少运行时与包体 |
 | 样式 | 原生 CSS + CSS 变量 | 设计令牌集中管理，便于统一视觉 |
-| 叙事 | 自研滚动控制器 + IntersectionObserver | 可控、可降级，不引入重型滚动库 |
+| 叙事 | 自研滚动控制器 + rAF 进度采样 | 可控、可降级，不引入重型滚动库 |
 | 2D 视觉 | DOM + SVG + CSS 动画 | 清晰、可访问、体积小 |
 | 3D（核心，局部） | Three.js | 只服务船体剖切、节点、接缝；动态 import，独立 chunk |
-| 多语种 | JSON 文案包 + 运行时切换 | 文案与代码分离，便于翻译审校 |
+| 多语种 | JS 文案模块（`src/content/`）+ 运行时切换 | 文案与代码同仓、类型可查，构建期无需额外加载 |
 | 部署 | GitHub Pages / Cloudflare Pages | 静态、免费、链接稳定 |
 
 **不选 React / R3F 的原因**：单页叙事不需要组件树与状态管理；原生方案包体更小、调试路径更短，评委本地打开也更稳。若后续 3D 交互复杂到需要 R3F，再单独评估，不在第一版引入。
@@ -90,14 +90,13 @@
 ### 4.3 滚动策略
 
 - 保留浏览器原生滚动，不劫持滚轮
-- 用 `IntersectionObserver` 检测 beat 进入
-- 用 `requestAnimationFrame` 读取进度，避免 scroll 事件里做重活
+- 用 `requestAnimationFrame` 每帧读一次 `scrollY` 计算进度；不用 `IntersectionObserver`，也不在 scroll 回调里遍历 DOM
 - 每个 beat 的 `scrollWeight` 控制停留长度，总长度控制在 6—9 屏
 - 支持反向滚动、快速滑动，不在 seam 处跳变
 
 ## 5. 场景层
 
-### 5.1 DOM/SVG 场景（默认）
+### 5.1 DOM/SVG 场景（文字屏与降级）
 
 - 首屏与文字为主的 beat 一律用 DOM/SVG
 - 动画只改 `transform`、`opacity`、`filter`
@@ -115,7 +114,7 @@
 接入条件：
 
 - 3D 承担“结构证据”，不是装饰
-- 优化后 GLB ≤ 5 MB，纹理 ≤ 2 张 1024
+- 优化后 GLB ≤ 5 MB（现状 2.32 MB）；纹理目标 ≤ 2 张 1024，现状 6 张 1024 / 10 个纹理对象，为已知超预算项，待合并贴图
 - 首屏不加载；进入 beat 2 前预加载
 - 独立 chunk，`import()` 动态加载
 - 加载失败或无 WebGL 时回退到 SVG 等距爆炸图
@@ -234,12 +233,13 @@ BlueFantasy/
 - 首屏图片 ≤ 500 KB，优先 WebP/AVIF
 - 3D chunk 单独加载，不阻塞首屏
 - GLB ≤ 5 MB，总三角面 ≤ 60,000，draw call ≤ 20
-- 纹理 ≤ 2 张 1024；不使用 HDR 环境贴图
+- 纹理目标 ≤ 2 张 1024（现状 6 张 / 10 个纹理对象，超预算已记录）；不使用 HDR 环境贴图
+- `tools/check-model.mjs` 报告纹理张数、对象数与尺寸；`--max-images` / `--max-textures` 可卡阈值
 - 所有图片有 `alt`，装饰图 `alt=""`
 - 键盘可完成语言切换与 beat 导航
 - 焦点样式可见，不用 `outline: none`
 - 对比度 ≥ 4.5:1
-- `prefers-reduced-motion: reduce` 时关闭位移动画，保留淡入
+- `prefers-reduced-motion: reduce` 时关闭位移动画、水面与漏水的逐帧动画，状态直接到目标
 
 ## 10. 待定决策（ADR）
 

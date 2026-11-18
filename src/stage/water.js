@@ -309,7 +309,7 @@ void main() {
 }
 `
 
-export function createWater({ floorY = -11.6, renderer = null, scene = null, camera = null } = {}) {
+export function createWater({ floorY = -11.6, renderer = null, scene = null, camera = null, reducedMotion = () => false } = {}) {
   // 排查开关（真机 A/B 用）：?water=static 冻结所有逐帧动画与反射；
   // ?water=off 直接不画水。目的是在无法开控制台的真机上定位「闪」来自哪一层。
   const waterFlag = (() => {
@@ -320,6 +320,8 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
     }
   })()
   const staticWater = waterFlag === 'static'
+  // 减少动效：水面时间动画、波纹扰动、逐帧反射全部停掉，和 ?water=static 同一条路径。
+  const still = () => staticWater || reducedMotion()
   const noWater = waterFlag === 'off'
 
   const ripple = makeRippleNormal()
@@ -662,8 +664,10 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
       // 慢化 + 死区：浮力模拟收敛前每帧会抖千分之几，直接照抄会让水面
       // 逐帧重建几何、法线跟着跳 —— 在高刷屏（ProMotion 120Hz）上就是闪烁。
       // 只追 35%，且差值小于 0.02 就不再动，视觉上完全看不出来。
-      if (Math.abs(d) > 0.02) {
-        levels[i] = levels[i] + d * 0.35
+      // 减少动效时不缓动，直接落到目标水位。
+      const dead = still() ? 0.001 : 0.02
+      if (Math.abs(d) > dead) {
+        levels[i] = still() ? next[i] : levels[i] + d * 0.35
         changed = true
       }
     }
@@ -672,7 +676,7 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
 
   // 有流量的舱往流体场里打速度/染料：水面因此是「被水推动的」，不是贴图在滚
   function splatAt(xWorld, zWorld, strength) {
-    if (!fluid) return
+    if (!fluid || still()) return
     const u = (xWorld - X_MIN) / (X_MAX - X_MIN)
     const v = (zWorld + Z_HALF) / (Z_HALF * 2)
     if (u < 0 || u > 1 || v < 0 || v > 1) return
@@ -688,7 +692,7 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
       const was = flows[i]
       flows[i] = v
       // 流量突变（漫水、破口进水）时才打点，稳定后不刷
-      if (fluid && Math.abs(v - was) > 0.05 && v > 0.05) {
+      if (fluid && !still() && Math.abs(v - was) > 0.05 && v > 0.05) {
         const cx = (edges[i] + edges[i + 1]) / 2
         splatAt(cx, (Math.random() - 0.5) * 12, v)
       }
@@ -730,7 +734,8 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
   }
 
   function update(dt) {
-    if (!staticWater) elapsed += dt
+    // still()：减少动效或 ?water=static 时完全不推进时间，着色器停在同一帧。
+    if (!still()) elapsed += dt
     surfaceUniforms.uTime.value = elapsed
     bodyUniforms.uTime.value = elapsed
     // 各舱水位差很小，取平均值当反射平面，误差看不出
@@ -742,9 +747,9 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
         lvlN += 1
       }
     }
-    if (lvlN > 0 && !staticWater) {
+    if (lvlN > 0 && !still()) {
       renderReflection(lvlSum / lvlN)
-    } else if (staticWater) {
+    } else if (still()) {
       // 反射每帧重画一张镜像视图，是「闪」的强嫌疑；静态模式下先关掉
       surfaceUniforms.uHasRefl.value = 0
     }
@@ -753,12 +758,12 @@ export function createWater({ floorY = -11.6, renderer = null, scene = null, cam
       group.visible = false
       return
     }
-    if (!fluid) return
+    if (!fluid || still()) return
 
     // 仍然在流动的舱持续补充扰动，避免水面「死掉」
     let flowing = false
     splatClock += dt
-    if (splatClock > 0.09) {
+    if (!still() && splatClock > 0.09) {
       splatClock = 0
       for (let i = 0; i < comp; i += 1) {
         if (flows[i] > 0.04) {
