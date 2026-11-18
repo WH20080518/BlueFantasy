@@ -565,6 +565,8 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   let beatIndex = 0
   let spin = 0
   let callsWarned = false
+  // 真模型接入后统计一次网格数，给 draw call 阈值当基线
+  let meshCount = 0
   const anchorV = new THREE.Vector3()
   const visibleSet = new Set()
   const boxCache = new Map()
@@ -757,15 +759,24 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
 
       renderer.render(scene, camera)
 
-      // draw call 预算：每个零件至少 1 次，阈值按零件数推导（23 个零件 → 上限 35）。
+      // draw call 预算：一个零件可能含多个网格/图元，GLB 里 28 个图元时，
+      // 光模型自身就接近 30 次调用——只按零件数推导（18 × 1.5 = 27）必然误报。
+      // 阈值取「零件数」与「实际网格数」两者的上限，再加水面/剖切盖等少量固定开销。
       // 不能在「接入后的第一帧」判一次——那一帧只有当前 beat 的零件可见，
       // 测到的是最省的画面，等于永不报警。改成逐帧看，哪一帧超了报哪一帧，只报一次。
       if (realModel && !callsWarned) {
         const calls = renderer.info.render.calls
-        const limit = Math.max(20, Math.ceil(boundParts * 1.5))
+        if (!meshCount) {
+          shipGroup.traverse((o) => {
+            if (o.isMesh) meshCount += 1
+          })
+        }
+        const limit = Math.max(20, Math.ceil(boundParts * 1.5), meshCount + 6)
         if (calls > limit) {
           callsWarned = true
-          console.warn(`[stage] draw calls ${calls} 超过预算 ${limit}（零件 ${boundParts} 个）`)
+          console.warn(
+            `[stage] draw calls ${calls} 超过预算 ${limit}（零件 ${boundParts} 个，网格 ${meshCount} 个）`,
+          )
         }
       }
     },
