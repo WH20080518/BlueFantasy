@@ -138,7 +138,7 @@ Rhino（3DM，mm）
   → Three.js：加载、材质覆盖、爆炸/漏水/补缝
 ```
 
-命名与面数预算见 [`07-modeling-brief.md`](07-modeling-brief.md)。零件位置存 `content/ship-parts.json`，前端按节点名查找。
+命名与面数预算见 [`07-modeling-brief.md`](07-modeling-brief.md)。零件位置存 `models/parts.json`（构建时同步到 `public/models/`），前端按节点名查找。
 
 ## 6. 多语种架构
 
@@ -159,7 +159,7 @@ content/
 - `<html lang>` 随语言切换更新
 - 外语版字幕/正文避免中文标点
 
-## 7. 目录结构
+## 7. 目录结构（规划稿；实际结构以 README 为准：`src/{content,stage,interactions,ui}`，文案为 `src/content/*.js`，零件表为 `models/parts.json`）
 
 ```
 BlueFantasy/
@@ -247,9 +247,9 @@ BlueFantasy/
 |---|---|---|
 | ADR-001 | 选题：《榫合》——古船结构与“榫合钉接” | **已定** |
 | ADR-002 | 3D 范围：局部核心（剖切船体 + 节点 + 接缝） | **已定** |
-| ADR-003 | 语种组合：中英必做，第三语种 11-12 定 | 待定 |
+| ADR-003 | 语种组合：中英必做；第三语种 | **已定：暂不启用**（2026-11-12，见 `09-glossary.md` §4） |
 | ADR-004 | 部署：GitHub Pages 主 + Cloudflare Pages 备 | **已上线** |
-| ADR-005 | 音频/旁白：是否加入环境音 | 待定，11-13 前 |
+| ADR-005 | 音频/旁白：是否加入环境音 | **已定：不加常驻环境音**（见 `12-demo-script.md` §5） |
 | ADR-006 | 3D 工具链：Rhino → Blender → GLB | **已定** |
 
 每项决策确定后，在 `docs/adr/` 下补一份简短记录：背景、选项、结论、影响。

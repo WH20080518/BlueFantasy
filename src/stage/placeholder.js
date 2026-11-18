@@ -250,7 +250,8 @@ function buildJoint() {
   // ExtrudeGeometry 沿 +Z 挤出，转成沿 +X（船体坐标），再把起点挪到接合面
   mortiseGeo.rotateY(-Math.PI / 2)
   mortiseGeo.translate(BEAM.len, 0, 0)
-  const mortiseBeam = new THREE.Mesh(mortiseGeo, woodMat)
+  // 单独一份材质：高亮是改 emissive，和榫头共用会一起发光
+  const mortiseBeam = new THREE.Mesh(mortiseGeo, woodMat.clone())
   const mortise = group('joint_mortise', [mortiseBeam])
 
   // 装配态贴合（d=0），爆炸态分开；scene.js 只用这两个数

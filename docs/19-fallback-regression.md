@@ -100,7 +100,7 @@
 ## 6. 本次未覆盖
 
 - 真机（iOS Safari / Android Chrome）的触摸拾取与地址栏收缩（C 的 `mobile-checklist.md` 已列，仍待人工）
-- `#lang-toggle` 命中区 26 px（11-14 已记录，待 C 修）
+- ~~`#lang-toggle` 命中区 26 px（11-14 已记录，待 C 修）~~（已在 `#36` 补齐 44 px 触屏命中区）
 
 ### 2026-11-17 补测：无 WebGL2 的自动降级
 

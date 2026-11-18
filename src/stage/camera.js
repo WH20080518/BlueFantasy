@@ -61,7 +61,7 @@ export class CameraRig {
       this.current.fov = this.desired.fov
     } else {
       // 帧率无关阻尼：60fps 下等效 0.14，120fps 与 30fps 手感一致
-      const k = 1 - Math.pow(1 - 0.14, Math.max(1, dt * 60))
+      const k = 1 - Math.pow(1 - 0.14, dt * 60)
       this.current.position.lerp(this.desired.position, k)
       this.current.target.lerp(this.desired.target, k)
       this.current.fov += (this.desired.fov - this.current.fov) * k

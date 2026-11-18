@@ -253,6 +253,8 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
   // 开一张 2048 的软阴影：船体、甲板、隔舱板之间终于有接触阴影。
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
+  // 阴影图只在每帧 update() 开头更新一次；反射/折射/主画面三次 render 共用，不再各自重画
+  renderer.shadowMap.autoUpdate = false
   // 纯色/贴图材质都需要色调映射与 sRGB 输出，否则发灰发脏。
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.toneMappingExposure = 0.95
@@ -632,6 +634,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
     update(dt, i, lt, blend) {
       // 2D 模式下主循环仍会调到这里：直接返回，别让隐藏的 3D 继续算洪水/反射/流体
       if (!running) return
+      renderer.shadowMap.needsUpdate = true
       const beat = beats[i]
       const next = beats[i + 1]
 
@@ -673,7 +676,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       const wantSpin = beat.stage.motion === 'idle-spin' && !reducedMotion()
       if (wantSpin) spin += dt * 0.08
       const targetRot = beat.id === 'b1' ? spin : 0
-      shipGroup.rotation.y += (targetRot - shipGroup.rotation.y) * (reducedMotion() ? 1 : 0.08)
+      shipGroup.rotation.y += (targetRot - shipGroup.rotation.y) * (reducedMotion() ? 1 : 1 - Math.pow(1 - 0.08, dt * 60))
 
       // beat 2 榫卯爆炸（随 beat 内进度）；reduced-motion 下直接设分离目标位置，不做滚动插值
       if (beat.id === 'b2' || (next && next.id === 'b2' && blend > 0)) {
@@ -800,7 +803,7 @@ export async function createStage({ canvas, beats, reducedMotion, base, onModelF
       const rect = canvas.getBoundingClientRect()
       const nx = ((clientX - rect.left) / rect.width) * 2 - 1
       const ny = -((clientY - rect.top) / rect.height) * 2 + 1
-      return parts.pick(nx, ny, camera)
+      return parts.pick(nx, ny, camera, cutOn ? cutPlane : null)
     },
 
     select(name) {

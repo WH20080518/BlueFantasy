@@ -45,38 +45,38 @@
 
 ## 6. 多语种检查
 
-- [ ] 至少中英双语，建议增加第三语种
-- [ ] 译文经人工审校，不是机翻直出
-- [ ] 文化专名有统一译法（如地名、非遗名称、民俗术语）
-- [ ] 外语版不是中文版的逐字直译，语序与表达符合目标语言习惯
-- [ ] 页面语言切换不丢失当前叙事位置
+- [x] 至少中英双语（第三语种决定暂不启用，见 `docs/09-glossary.md` §4）
+- [ ] 译文经人工审校，不是机翻直出（已完成双模型交叉审校与团队人工定稿，见 `18-english-review.md`；外部母语者复核待补）
+- [x] 文化专名有统一译法（如地名、非遗名称、民俗术语）
+- [x] 外语版不是中文版的逐字直译，语序与表达符合目标语言习惯
+- [x] 页面语言切换不丢失当前叙事位置
 
 ## 7. 素材与版权
 
-- [ ] 图片、音频、视频、字体、3D 模型均有来源记录
-- [ ] 使用第三方素材时确认授权范围
-- [ ] AI 生成素材在 AI 说明中披露
-- [ ] 仓库中保留 `docs/assets-credits.md`（后续创建）
+- [x] 图片、音频、视频、字体、3D 模型均有来源记录（`docs/assets-credits.md`）
+- [x] 使用第三方素材时确认授权范围（印章字体 SIL OFL 1.1，同目录保留 `OFL.txt` 与 `README.md`）
+- [x] AI 生成素材在 AI 说明中披露（已明确未使用图像/3D 生成模型，文本与代码辅助见 `docs/20-submission-materials.md`）
+- [x] 仓库中保留 `docs/assets-credits.md`（已创建）
 
 ## 8. 技术自检
 
-- [ ] 公网链接可打开，无登录墙
-- [ ] 手机端（375px）无横向滚动
-- [ ] 桌面端（1440px）布局正常
-- [ ] 首屏加载可接受，3D 资源不阻塞文字
-- [ ] GLB ≤ 5 MB，总三角面 ≤ 60,000，draw call ≤ 20
-- [ ] 3D 节点名与 `ship-parts.json` 一致，无缺失节点
-- [ ] 无 WebGL / 加载失败时显示 SVG 等距图，文案完整
-- [ ] 漏水实验、补缝、爆炸动画可重复播放
-- [ ] 键盘可操作，焦点可见
-- [ ] `prefers-reduced-motion` 生效
-- [ ] 控制台无报错
-- [ ] 录屏覆盖完整交互路径，不剪切关键动作
+- [x] 公网链接可打开，无登录墙（`docs/06-cloudflare-pages.md` 已验双链返回 200；合入本次修复后建议复核）
+- [x] 手机端（375px）无横向滚动（`docs/mobile-checklist.md`、`docs/19-fallback-regression.md`）
+- [x] 桌面端（1440px）布局正常
+- [x] 首屏加载可接受，3D 资源不阻塞文字（three 动态 `import()` 独立 chunk）
+- [x] GLB ≤ 5 MB，总三角面 ≤ 60,000（`npm run check:model` 实测 2.32 MB / 38,678 面；28 图元，draw call 阈值按网格数推导见 `REPORT.md`）
+- [x] 3D 节点名与 `models/parts.json` 一致，无缺失节点（`npm run check:parts` 通过：23 个零件）
+- [x] 无 WebGL / 加载失败时显示 SVG 等距图，文案完整（`docs/19-fallback-regression.md`）
+- [x] 漏水实验、补缝、爆炸动画可重复播放（`tests/interactions.md`）
+- [x] 键盘可操作，焦点可见
+- [x] `prefers-reduced-motion` 生效（`docs/reduced-motion.md` + #45）
+- [ ] 控制台无报错（#44/#45 已在本地 preview 验过零报错；合入 PR #43 后请在真实浏览器再复核）
+- [ ] 录屏覆盖完整交互路径，不剪切关键动作（需人工录屏后勾选）
 
 ## 9. 仓库自检
 
-- [ ] `.gitignore` 生效，`node_modules/`、`dist/` 未提交
-- [ ] 未提交 `.env`、密钥、token
-- [ ] 大模型文件使用 Git LFS 或压到 10 MB 内
-- [ ] README 能让他人独立跑起来
-- [ ] 提交记录清晰，无巨型二进制历史
+- [x] `.gitignore` 生效，`node_modules/`、`dist/`、`ship.blend` 未提交
+- [x] 未提交 `.env`、密钥、token
+- [x] 大模型文件使用 Git LFS 或压到 10 MB 内（`ship.glb` 2.32 MB）
+- [x] README 能让他人独立跑起来
+- [x] 提交记录清晰，无巨型二进制历史
