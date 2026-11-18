@@ -8,7 +8,7 @@
 
 const DRY_SINK = 0
 
-export function createFlood({ ship, water, bulkheads = [], floorY = -11.6, topY = 5.2 }) {
+export function createFlood({ ship, water, bulkheads = [], floorY = -11.6, topY = 5.2, reducedMotion = () => false }) {
   const bulkMats = []
   const collectBulkMats = () => {
     bulkMats.length = 0
@@ -96,7 +96,7 @@ export function createFlood({ ship, water, bulkheads = [], floorY = -11.6, topY 
     return t
   }
 
-  function stepPhysics(dt) {
+  function stepPhysics(dt, apply = true) {
     const k = Math.min(0.06, dt) // 大 dt 时限制步长，避免数值炸开
     const filling = state.mode === 'with-bulkheads' || (state.mode === 'without-bulkheads' && state.open > 0.15)
 
@@ -153,17 +153,26 @@ export function createFlood({ ship, water, bulkheads = [], floorY = -11.6, topY 
     }
     const wantPitch = vol > 0.01 ? Math.max(-0.045, Math.min(0.045, (moment / vol) * 0.0011)) : 0
 
-    const kk = 1 - Math.exp(-dt * 3.2)
+    // 减少动效：姿态直接到目标，不做下沉/倾斜/淡出的逐帧缓动
+    const still = reducedMotion()
+    const kk = still ? 1 : 1 - Math.exp(-dt * 3.2)
     state.sink += (wantSink - state.sink) * kk
     state.pitch += (wantPitch - state.pitch) * kk
 
     const wantOpacity = state.mode === 'without-bulkheads' ? 0.07 : 1
-    state.bulkOpacity += (wantOpacity - state.bulkOpacity) * (1 - Math.exp(-dt * 6))
-    if (state.mode === 'without-bulkheads') state.open = Math.min(1, state.open + dt * 2.2)
-    else state.open = Math.max(0, state.open - dt * 3.4)
+    const wantOpen = state.mode === 'without-bulkheads' ? 1 : 0
+    if (still) {
+      state.bulkOpacity = wantOpacity
+      state.open = wantOpen
+    } else {
+      state.bulkOpacity += (wantOpacity - state.bulkOpacity) * (1 - Math.exp(-dt * 6))
+      if (state.mode === 'without-bulkheads') state.open = Math.min(1, state.open + dt * 2.2)
+      else state.open = Math.max(0, state.open - dt * 3.4)
+    }
 
     ship.position.y = state.sink
     ship.rotation.z = state.pitch
+    if (!apply) return
     bulkMats.forEach((m) => {
       m.opacity = state.bulkOpacity
       m.depthWrite = state.bulkOpacity > 0.5
@@ -250,7 +259,13 @@ export function createFlood({ ship, water, bulkheads = [], floorY = -11.6, topY 
         water.update(dt)
         return
       }
-      stepPhysics(dt)
+      if (reducedMotion()) {
+        // 稳态优先：把模拟用大固定步长快进几帧，让水位/水量直接收敛，
+        // 而不是让用户在 b5 看着水慢慢漫过去。
+        for (let i = 0; i < 10; i += 1) stepPhysics(0.06, i === 9)
+      } else {
+        stepPhysics(dt)
+      }
       water.update(dt)
     },
   }

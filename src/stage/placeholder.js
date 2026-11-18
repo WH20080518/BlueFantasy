@@ -358,11 +358,15 @@ function buildShipStructure() {
   }
   bulkPos.needsUpdate = true
 
-  const bulkheads = [-25, 0, 25].map((x, i) => {
+  // 故事按实船的 12 道隔舱讲（docs/10-fact-check.md），占位阶段也必须建满 12 道：
+  // 只建 3 道的话，parts.json 缺失/超时时 scene.js 没有容器可补，b4/b5 会少隔舱。
+  const bulkheads = []
+  for (let i = 1; i <= 12; i += 1) {
     const b = new THREE.Mesh(bulkGeo, std(PALETTE.wood))
-    b.position.set(x, -3, 0)
-    return group(`bulkhead_0${i + 1}`, [b])
-  })
+    // 沿船长均匀铺开，两端各留一点余量；真模型接入后位置由 parts.json 决定
+    b.position.set(-42 + ((i - 1) * 84) / 11, -3, 0)
+    bulkheads.push(group(`bulkhead_${String(i).padStart(2, '0')}`, [b]))
+  }
 
   return { keelG, stemG, sternpostG, bulkheads }
 }

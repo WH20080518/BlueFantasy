@@ -202,12 +202,28 @@ function onBeat(i) {
 
 /* ---------- 指针与键盘 ---------- */
 
+// 拾取等 pointerup 再做：画布允许纵向平移（touch-action: pan-y），
+// 手指从画布起手滑页时 pointerdown 已触发，立即拾取会把滚动当点击。
+let pickOrigin = null
 canvas.addEventListener('pointerdown', (e) => {
   if (!stage3d) return
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+  pickOrigin = { id: e.pointerId, x: e.clientX, y: e.clientY }
+})
+
+function endPick(e) {
+  const o = pickOrigin
+  pickOrigin = null
+  if (!o || o.id !== e.pointerId || !stage3d) return
+  // 拖动超过 10px 视为滚动手势，不选中零件
+  if (Math.hypot(e.clientX - o.x, e.clientY - o.y) > 10) return
   const beat = beats[currentBeat]
   if (!beat || !beat.pick) return
   onPick(stage3d.pickAt(e.clientX, e.clientY))
-})
+}
+
+window.addEventListener('pointerup', endPick)
+window.addEventListener('pointercancel', () => { pickOrigin = null })
 
 stageEl.addEventListener('keydown', (e) => {
   // 只在舞台本身有焦点时接管键盘；焦点在内部按钮上时放行，避免抢走键盘导航
@@ -288,6 +304,8 @@ function applyViewMode() {
       if (stageFailReason) b.title = stageFailReason
     }
   })
+  // 2D 时停掉 3D 渲染链；切回 3D 再恢复（stage 可能还没就绪，用可选链）
+  if (stage3d) stage3d.setRunning(viewMode === '3d')
   if (viewMode === '2d') {
     useFallback()
   } else if (fallback) {
@@ -446,6 +464,8 @@ if (!no3d && webglAvailable()) {
     .then((stage) => {
       stage3d = stage
       stage3d.resize()
+      // 开场时用户可能已经选了 2D：先按当前模式设一次，别让它空跑
+      stage3d.setRunning(viewMode === '3d')
       if (currentBeat >= 0) stage3d.enterBeat(currentBeat)
       // 只在 dev 暴露调试句柄：拾取/可见性出问题时可以直接在控制台查，
       // 不用靠截图猜。
@@ -514,7 +534,7 @@ function frame(now) {
   if (i !== currentBeat) onBeat(i)
   overlay.setProgress(p)
 
-  if (stage3d) {
+  if (stage3d && viewMode === '3d') {
     stage3d.update(dt, i, lt, blend)
     positionLabel()
   }
