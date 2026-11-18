@@ -96,7 +96,7 @@ CDP 375 × 812（DPR 2）逐元素量 `getBoundingClientRect().height`：
 - [x] `npm run check:parts` 通过（23 个零件，unit=m）
 - [x] `npm run build` 通过
 - [ ] 真机（iOS / Android）触摸拾取 —— 需人工，headless 只验证了坐标变换
-- [ ] 语言切换按钮命中区 —— 未修，已转交 C
+- [x] 语言切换按钮命中区 —— 已在 `#36`（`fix(mobile): ?no3d 按值解析 + 触屏命中区补到 44px`）补到 44px
 
 ## 8. 下一步
 

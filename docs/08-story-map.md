@@ -46,8 +46,8 @@
 
 > **eyebrow** A Chinese ship
 > **h1** Not a single nail?
-> **body** The claim is everywhere, and it is romantic: wood holding wood, no iron at all.
-> **body** Take a ship apart and the picture gets more interesting.
+> **body** You hear it everywhere, and it is a romantic idea: wood holding wood, with no iron at all.
+> **body** Take a ship apart, and the picture gets more interesting.
 
 - **事实边界**：这是「流行说法」，不是我们的结论。**不要**在画面上标注任何出处，避免被理解为学术引用。
 
@@ -71,8 +71,8 @@
 
 > **eyebrow** Joint · one
 > **h1** Tenon, mortise
-> **body** One piece of wood leaves a tongue. The other leaves a matching socket.
-> **body** No glue, no nail — the shape itself does the holding.
+> **body** A tenon is a tongue left on one timber; a mortise is the socket cut to receive it.
+> **body** No glue, no nails — the shape itself holds.
 
 - **术语弹窗**：`榫头 tenon` / `卯眼 mortise`，标注「可直译」。
 - **待核**：本节点为示意结构，不代表某一艘沉船的实测节点。页面上不写「考古实测」。
@@ -97,8 +97,8 @@
 
 > **eyebrow** Joint · two
 > **h1** Beyond joinery: nails
-> **body** A ship is not a cabinet. It goes into water, takes waves, and stays wet for decades.
-> **body** So the real method is mortise-and-tenon **plus** fastening: tenons locate, iron or wooden nails lock, and putty with hemp caulks the seam shut.
+> **body** A ship is not a cabinet. It goes into the water, takes waves, and stays wet for decades.
+> **body** So the real method is joinery **plus** fastening: tenons locate the plank, iron or wooden nails lock it, and tung-oil putty worked with hemp caulks the seam shut.
 
 - **术语弹窗**：`榫合钉接 mortise-and-tenon joinery with nail fastening`（注明「无对应单词，属解释性翻译」）、`捻缝 caulking`。
 - **注意**：这是全篇最重要的一次纠正，画面要给足停留。
@@ -124,7 +124,7 @@
 > **eyebrow** Structure
 > **h1** One ship, several rooms
 > **body** Transverse bulkheads cut the hull into compartments that do not connect.
-> **body** They carry cargo — and they decide whether the ship still floats after it is holed.
+> **body** They carry cargo, and they decide whether the ship still floats once it is holed.
 
 - **已定**：页面按实船 12 道隔舱板建模（`parts.json` 已含 01–12）。不再写「只展示 3 道」的简化说明；仍不要写成「这艘船只有 3 个舱」。2026-11-16 订正。
 
@@ -147,9 +147,9 @@
 **English**
 
 > **eyebrow** Test
-> **h1** One compartment floods. The ship stays up.
-> **body** Water fills a single hold. The ship loses some buoyancy, lists, then settles.
-> **body** Remove the bulkheads and the same breach runs the length of the hull.
+> **h1** One compartment floods. The ship stays afloat.
+> **body** Water fills a single compartment. The ship loses some buoyancy, lists, then settles.
+> **body** Take the bulkheads out and the same breach runs the length of the hull.
 
 - **动画要求**：这是 60–90 秒演示的高潮，必须可重复播放且无加载等待。
 
@@ -174,7 +174,7 @@
 > **eyebrow** Translation
 > **h1** How a word crosses water
 > **body** English has no single word for 榫卯. The closest is *mortise-and-tenon joint*.
-> **body** Translation is joinery too: the two sides never match exactly, and still have to hold.
+> **body** Translation is joinery too: the two sides never match exactly, and they still have to hold.
 
 - **术语表**：见 `docs/09-glossary.md`。
 
@@ -223,7 +223,7 @@ export const beats = [
 
 ## 10. 下一步
 
-- [ ] 文案再校一遍事实与语气，落 `docs/10-fact-check.md`
-- [ ] 术语表定稿（`09-glossary.md`）
-- [ ] 前端按本文件搭空场景，用占位几何跑通滚动 → beat → 相机
-- [ ] 第三语种（日/韩）11-12 决定是否启用
+- [x] 文案再校一遍事实与语气，落 `docs/10-fact-check.md`
+- [x] 术语表定稿（`09-glossary.md`）
+- [x] 前端按本文件搭空场景，用占位几何跑通滚动 → beat → 相机
+- [x] 第三语种（日/韩）决定暂不启用（2026-11-12，见 `09-glossary.md` §4）

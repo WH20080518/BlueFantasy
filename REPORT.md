@@ -65,5 +65,19 @@
 - 11-12 决定隔舱板按实船做 **12 道**（与内容组事实核查一致），零件数从 3 增到 12，原阈值不再适用。
 - 新上限：**≤ 60,000 三角面**，体积 ≤ 5 MB。`tools/check-model.mjs` 默认值已同步。
 - **实测（11-13，`npm run check:model`）**：19,350 三角形 / 0.75 MB / 4 材质 / 23 个节点 / 28 个图元（Draco 压缩）。
-- draw call 不再定死 20：23 个零件每个至少 1 次绘制，阈值改为 `max(20, 零件数 × 1.5)`（当前 35）。页面运行时若超限会在 console 打 warn。
+- **实测（11-17 资产打磨 #41 后，`npm run check:model`）**：38,678 三角形 / 2.32 MB / 4 材质 / 23 个节点 / 28 个图元 / 6 张 1024 纹理（10 个纹理对象）。
+- draw call 不再定死 20：23 个零件、28 个图元按实际网格数与零件数推导上限（`max(20, ceil(boundParts * 1.5), meshCount + 6)`）。页面运行时若超限会在 console 打 warn。
 - 复核方式：模型交付后跑 `npm run check:model`，若超标优先降船体曲面细分，不拆隔舱板。
+
+## 收尾与第 2 轮审查修复记录（2026-11-18）
+
+在完成真模接入（#41）、2D 双缓冲交叉淡入与无 WebGL2 提示（#42）、生产日志清理（#44）及 2D 停跑 3D / 压顶条剖切 / 占位 12 道隔舱 / reduced-motion 水面与漏水（#45）后，全仓代码审查发现并修复以下问题：
+
+1. **英文测验初始语言与标点**（`src/ui/quiz.js`、`src/ui/overlay.js`）— `createQuiz` 接收 `initialLang`，修正 `?lang=en` 进站时第 7 屏仍显示中文的 bug，并将英文反馈与总分提示中的 `——`、`。` 替换为英文标点。
+2. **2D 切回 3D 按钮与画布恢复**（`src/ui/overlay.js`、`src/main.js`）— `renderStatic` 双向同步 `floodBtns` 的 `disabled`/`aria-disabled`；`applyViewMode` 切回 3D 时触发 `stage3d.resize()` 与 `enterBeat()`，避免画布维持 `display:none` 下量出的 1×1 像素尺寸。
+3. **深链读取时机与调试清理**（`src/main.js`）— `?beat=N` 改为启动时只解析一次并缓存到 `deepLinkBeat`，防止开场页停留超过 300ms 后被 `writeUrlState()` 写入的 `?beat=1` 误当成深链；移除 `window.__dl` 计数，提前 `maxScroll`/`maxScrollDirty` 声明。
+4. **2D 下彻底解绑舞台键盘与交互**（`src/main.js`）— 新增 `is3dActive()` 统一守卫指针拾取、Tab/Enter 键盘遍历及 `resize`。
+5. **榫卯独立材质与剖切拾取过滤**（`src/stage/placeholder.js`、`src/stage/parts.js`、`src/stage/scene.js`）— 卯眼使用独立 `woodMat.clone()` 避免点选榫头时一起发光；`_setEmissive` 恢复原 `emissiveIntensity`；b4 剖切开启时按 `cutPlane` 过滤被裁半侧的射线命中点。
+6. **渲染性能与帧率无关阻尼**（`src/stage/scene.js`、`src/stage/camera.js`、`src/ui/overlay.js`）— `shadowMap.autoUpdate = false` 改为每帧 `update()` 开头更新一次阴影深度；`CameraRig` 与 b1 自转阻尼去掉 `Math.max(1, dt * 60)` 钳制以适配 120Hz 高刷屏；零件浮层改为仅在零件名/语言/视口变化时重建 DOM 并缓存宽高，进度条 `aria-valuenow` 值不变时跳过写入。
+7. **WebGL2 探测缓存与释放**（`src/main.js`）— 缓存 `webglAvailable()` 探测结果并在探测后立即调用 `WEBGL_lose_context` 释放上下文。
+8. **文档与提交材料收尾** — 清理 `docs/07` 残留禁用词变体，同步 `docs/08` 英文定稿，在 `docs/12-demo-script.md` 补全双语旁白与 SRT 字幕，在 `docs/20-submission-materials.md` 汇编《作品说明》《AI 创作说明》与术语附录，更新 `README.md` 与各检查清单。

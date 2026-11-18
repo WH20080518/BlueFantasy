@@ -63,6 +63,20 @@ function measureVH() {
 
 let currentBeat = -1
 let stage3d = null
+// 3D 模块可能已加载，但用户选了 2D（viewMode !== '3d'）：此时一律不驱动 3D，也不接管键盘
+const is3dActive = () => stage3d !== null && viewMode === '3d'
+// webglAvailable 的结果缓存：每次探测都会新建一个 WebGL2 上下文，移动端上下文数量有限
+let webglCache = null
+// ?beat=N 只在启动时读一次：之后 writeUrlState 会改写地址栏，再读就会把自己写的值当成深链
+const deepLinkBeat = (() => {
+  const raw = params.get('beat')
+  if (raw === null) return null
+  const n = Number.parseInt(raw, 10)
+  return Number.isFinite(n) && n >= 1 ? n : null
+})()
+// 滚动高度缓存（声明提前：多个回调会在主循环定义之前写它）
+let maxScroll = 0
+let maxScrollDirty = true
 let threeFailed = false
 let stageFailReason = ''
 let fallback = null
@@ -102,7 +116,7 @@ function clearLabel() {
 }
 
 function onPick(name) {
-  if (!stage3d) return
+  if (!is3dActive()) return
   if (!name) {
     stage3d.clearSelection()
     clearLabel()
@@ -119,7 +133,7 @@ function onPick(name) {
 }
 
 function positionLabel() {
-  if (!labelPart || !stage3d) return
+  if (!labelPart || !is3dActive()) return
   const a = stage3d.anchorOf(labelPart)
   if (!a) {
     overlay.hidePartLabel()
@@ -195,7 +209,7 @@ function onBeat(i) {
   overlay.renderBeat(i)
   // 文案面板换了一屏，高度会变 → 下一帧重新量
   maxScrollDirty = true
-  if (stage3d) stage3d.enterBeat(i)
+  if (is3dActive()) stage3d.enterBeat(i)
   if (fallback) fallback.setBeat(beats[i], lang)
   scheduleUrlWrite()
 }
@@ -206,7 +220,7 @@ function onBeat(i) {
 // 手指从画布起手滑页时 pointerdown 已触发，立即拾取会把滚动当点击。
 let pickOrigin = null
 canvas.addEventListener('pointerdown', (e) => {
-  if (!stage3d) return
+  if (!is3dActive()) return
   if (e.pointerType === 'mouse' && e.button !== 0) return
   pickOrigin = { id: e.pointerId, x: e.clientX, y: e.clientY }
 })
@@ -214,7 +228,7 @@ canvas.addEventListener('pointerdown', (e) => {
 function endPick(e) {
   const o = pickOrigin
   pickOrigin = null
-  if (!o || o.id !== e.pointerId || !stage3d) return
+  if (!o || o.id !== e.pointerId || !is3dActive()) return
   // 拖动超过 10px 视为滚动手势，不选中零件
   if (Math.hypot(e.clientX - o.x, e.clientY - o.y) > 10) return
   const beat = beats[currentBeat]
@@ -230,12 +244,12 @@ stageEl.addEventListener('keydown', (e) => {
   if (e.target !== stageEl) return
   // Escape 任何 beat / 降级模式下都退出舞台焦点。
   if (e.key === 'Escape') {
-    if (stage3d) stage3d.clearSelection()
+    if (is3dActive()) stage3d.clearSelection()
     clearLabel()
     stageEl.blur()
     return
   }
-  if (!stage3d) return
+  if (!is3dActive()) return
   const beat = beats[currentBeat]
   if (!beat || !beat.pick) return
   if (e.key === 'Tab') {
@@ -263,6 +277,11 @@ stageEl.addEventListener('focusout', () => {
 // 会出现「检测通过 → new WebGLRenderer 抛 Error creating WebGL context →
 // 3D 被锁死」的情况，表现为 3D 按钮点不了。所以只认 webgl2。
 function webglAvailable() {
+  if (webglCache === null) webglCache = probeWebgl()
+  return webglCache
+}
+
+function probeWebgl() {
   try {
     if (!window.WebGL2RenderingContext) {
       stageFailReason = '这个浏览器没有 WebGL2（three 0.170 起只支持 WebGL2）'
@@ -274,6 +293,8 @@ function webglAvailable() {
       stageFailReason = 'WebGL2 被浏览器或显卡驱动禁用（检查 chrome://gpu 的 WebGL2 状态）'
       return false
     }
+    // 探测完立刻释放，别占着上下文名额
+    gl.getExtension('WEBGL_lose_context')?.loseContext()
     return true
   } catch {
     return false
@@ -314,6 +335,11 @@ function applyViewMode() {
     stageEl.classList.remove('is-fallback')
     document.body.classList.remove('is-fallback')
     overlay.setFallbackMode(false)
+    // 2D 期间 canvas 是 display:none，尺寸被量成 1×1；回到 3D 必须重量并同步当前 beat
+    if (stage3d) {
+      stage3d.resize()
+      if (currentBeat >= 0) stage3d.enterBeat(currentBeat)
+    }
   }
 }
 
@@ -357,10 +383,7 @@ function settleScroll(fn) {
 
 /** ?beat=N 且合法时，说明进站前已经按深链定位过，开场页关闭时不能把位置拉回顶部。 */
 function hasDeepLinkBeat() {
-  const raw = new URLSearchParams(window.location.search).get('beat')
-  if (raw === null) return false
-  const n = Number.parseInt(raw, 10)
-  return Number.isFinite(n) && n >= 1
+  return deepLinkBeat !== null
 }
 
 function enterSite() {
@@ -393,12 +416,8 @@ presentIntro()
 
 // ?beat=N（1 起）：定位到该 beat 的中点。要等布局结算，浏览器还可能把滚动还原成 0。
 function applyInitialLocation() {
-  window.__dl = (window.__dl || 0) + 1
-  const raw = new URLSearchParams(window.location.search).get('beat')
-  if (raw === null) return
-  const n = Number.parseInt(raw, 10)
-  if (!Number.isFinite(n) || n < 1) return
-  const i = Math.min(beats.length, n) - 1
+  if (deepLinkBeat === null) return
+  const i = Math.min(beats.length, deepLinkBeat) - 1
   const beat = beats[i]
   const mid = (beat.progress[0] + beat.progress[1]) / 2
   const max = document.documentElement.scrollHeight - vhBaseline
@@ -440,7 +459,7 @@ window.addEventListener('resize', () => {
   measureVH()
   layout()
   maxScrollDirty = true
-  if (stage3d) stage3d.resize()
+  if (is3dActive()) stage3d.resize()
 })
 
 // 字体是 font-display: swap，加载完成后正文行高会变、面板高度也会变。
@@ -466,7 +485,7 @@ if (!no3d && webglAvailable()) {
       stage3d.resize()
       // 开场时用户可能已经选了 2D：先按当前模式设一次，别让它空跑
       stage3d.setRunning(viewMode === '3d')
-      if (currentBeat >= 0) stage3d.enterBeat(currentBeat)
+      if (is3dActive() && currentBeat >= 0) stage3d.enterBeat(currentBeat)
       // 只在 dev 暴露调试句柄：拾取/可见性出问题时可以直接在控制台查，
       // 不用靠截图猜。
       if (import.meta.env.DEV) {
@@ -505,9 +524,7 @@ if (!no3d && webglAvailable()) {
 
 let last = performance.now()
 // scrollHeight 读一次会强制一次布局。每帧读，滚动时面板高度一变就掉帧。
-// 改成缓存：只有窗口尺寸变化、beat 切换（面板内容换了）时才重新量。
-let maxScroll = 0
-let maxScrollDirty = true
+// 改成缓存：只有窗口尺寸变化、beat 切换（面板内容换了）时才重新量（变量声明在文件顶部）。
 function remeasureScroll() {
   maxScroll = Math.max(0, document.documentElement.scrollHeight - vhBaseline)
   maxScrollDirty = false
@@ -534,7 +551,7 @@ function frame(now) {
   if (i !== currentBeat) onBeat(i)
   overlay.setProgress(p)
 
-  if (stage3d && viewMode === '3d') {
+  if (is3dActive()) {
     stage3d.update(dt, i, lt, blend)
     positionLabel()
   }

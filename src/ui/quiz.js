@@ -3,8 +3,8 @@ import { quizCopy, questions } from '../content/quiz.js'
 // 第 7 屏的三问。一次只显示一题，答完给一句解释，三题后给结果。
 // 状态存在这里，语言切换只重绘、不重置；重新进入第 7 屏才 reset。
 
-export function createQuiz({ stepEl, qEl, optsEl, whyEl, scoreEl, nextEl }) {
-  let lang = 'zh'
+export function createQuiz({ stepEl, qEl, optsEl, whyEl, scoreEl, nextEl, initialLang = 'zh' }) {
+  let lang = initialLang === 'en' ? 'en' : 'zh'
   let current = 0
   let answered = []
   let finished = false
@@ -51,7 +51,7 @@ export function createQuiz({ stepEl, qEl, optsEl, whyEl, scoreEl, nextEl }) {
     const ok = picked === q.answer
     whyEl.hidden = false
     whyEl.className = `quiz-why ${ok ? 'is-right' : 'is-wrong'}`
-    whyEl.textContent = `${ok ? t(quizCopy.right) : t(quizCopy.wrong)}——${t(q.why)}`
+    whyEl.textContent = `${ok ? t(quizCopy.right) : t(quizCopy.wrong)}${lang === 'en' ? ': ' : '——'}${t(q.why)}`
     nextEl.hidden = false
     nextEl.textContent = current === questions.length - 1 ? t(quizCopy.finish) : t(quizCopy.next)
   }
@@ -67,7 +67,7 @@ export function createQuiz({ stepEl, qEl, optsEl, whyEl, scoreEl, nextEl }) {
     if (finished) {
       const n = score()
       scoreEl.hidden = false
-      scoreEl.textContent = (n === questions.length ? `${t(quizCopy.score).replace('{n}', String(n))}。${t(quizCopy.done)}` : t(quizCopy.score).replace('{n}', String(n)))
+      scoreEl.textContent = (n === questions.length ? `${t(quizCopy.score).replace('{n}', String(n))}${lang === 'en' ? '. ' : '。'}${t(quizCopy.done)}` : t(quizCopy.score).replace('{n}', String(n)))
       scoreEl.className = `quiz-score ${n === questions.length ? 'is-done' : ''}`
       const b = document.createElement('button')
       b.type = 'button'

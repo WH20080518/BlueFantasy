@@ -81,6 +81,7 @@ export function createOverlay({ reducedMotion, fallbackMode, handlers, initialLa
     whyEl: el.quizWhy,
     scoreEl: el.quizScore,
     nextEl: el.quizNext,
+    initialLang,
   })
 
 
@@ -102,7 +103,13 @@ export function createOverlay({ reducedMotion, fallbackMode, handlers, initialLa
   partAnnounce.setAttribute('aria-live', 'polite')
   el.stage.appendChild(partAnnounce)
   el.partLabel.setAttribute('aria-hidden', 'true')
+  let lastPct = ''
   let announcedPart = null
+  // 浮层内容缓存：main 每帧都会调 showPartLabel，只在零件/语言/视口变化时才重建 DOM 并量尺寸
+  let shownKey = ''
+  let labelW = 0
+  let labelH = 0
+  window.addEventListener('resize', () => { shownKey = '' })
 
   // 「重来」按钮：三步完成后显示，点击回到补缝前状态。
   const caulkReset = document.createElement('button')
@@ -113,7 +120,7 @@ export function createOverlay({ reducedMotion, fallbackMode, handlers, initialLa
 
   let lang = initialLang === 'en' ? 'en' : 'zh'
   let beatIndex = -1
-let lastInteractionBeat = -1
+  let lastInteractionBeat = -1
   let swapToken = 0
   let fMode = fallbackMode
 
@@ -194,10 +201,9 @@ let lastInteractionBeat = -1
     floodBtns.forEach((b) => {
       const key = b.dataset.flood === 'with-bulkheads' ? 'withBulkheads' : 'withoutBulkheads'
       b.textContent = t(ui.flood[key])
-      if (fMode) {
-        b.disabled = true
-        b.setAttribute('aria-disabled', 'true')
-      }
+      // 双向同步：2D → 3D 切回来时要恢复可点
+      b.disabled = fMode
+      b.setAttribute('aria-disabled', String(fMode))
     })
     el.floodUI.querySelector('.flood-switch').setAttribute('aria-label', t(ui.flood.groupAria))
   }
@@ -598,7 +604,11 @@ let lastInteractionBeat = -1
     },
     setProgress(p) {
       el.fill.style.transform = `scaleX(${p})`
-      el.bar.setAttribute('aria-valuenow', String(Math.round(p * 100)))
+      const pct = String(Math.round(p * 100))
+      if (pct !== lastPct) {
+        lastPct = pct
+        el.bar.setAttribute('aria-valuenow', pct)
+      }
     },
     caulkFeedback(result, stack, done) {
       clearCaulkErrorTimer()
@@ -627,6 +637,9 @@ let lastInteractionBeat = -1
         return
       }
       const { term, seq } = hit
+      const key = `${name}|${lang}`
+      if (key === shownKey && !el.partLabel.hidden) return
+      shownKey = key
       el.partLabel.innerHTML = ''
       const zh = document.createElement('strong')
       zh.textContent = seq ? `${term.zh} ${seq}` : term.zh
@@ -645,6 +658,8 @@ let lastInteractionBeat = -1
         el.partLabel.append(g)
       }
       el.partLabel.hidden = false
+      labelW = el.partLabel.offsetWidth
+      labelH = el.partLabel.offsetHeight
       // 只在换成另一个零件时朗读，相机移动导致的重绘不触发
       if (announcedPart !== name) {
         announcedPart = name
@@ -655,8 +670,8 @@ let lastInteractionBeat = -1
       // 浮层用 translate(-50%, -115%) 定位，所以 x 是中线、y 是底边之上。
       // 窄屏 / 零件靠近边缘时把浮层夹回视口内，否则会飘到屏幕外。
       const pad = 8
-      const w = el.partLabel.offsetWidth
-      const h = el.partLabel.offsetHeight
+      const w = labelW || el.partLabel.offsetWidth
+      const h = labelH || el.partLabel.offsetHeight
       const minX = w / 2 + pad
       const maxX = window.innerWidth - w / 2 - pad
       const minY = h * 1.15 + pad
@@ -667,6 +682,7 @@ let lastInteractionBeat = -1
       el.partLabel.style.top = `${Math.round(cy)}px`
     },
     hidePartLabel() {
+      shownKey = ''
       el.partLabel.hidden = true
       announcedPart = null
     },

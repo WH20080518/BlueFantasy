@@ -42,12 +42,13 @@ export class Parts {
     this._meshes(name).forEach((m) => {
       if (!m.material || !('emissive' in m.material)) return
       if (on) {
-        if (!this._saved.has(m)) this._saved.set(m, m.material.emissive.clone())
+        if (!this._saved.has(m)) this._saved.set(m, { color: m.material.emissive.clone(), intensity: m.material.emissiveIntensity })
         m.material.emissive.copy(HIGHLIGHT)
         m.material.emissiveIntensity = 0.45
       } else if (this._saved.has(m)) {
-        m.material.emissive.copy(this._saved.get(m))
-        m.material.emissiveIntensity = 1
+        const saved = this._saved.get(m)
+        m.material.emissive.copy(saved.color)
+        m.material.emissiveIntensity = saved.intensity
         this._saved.delete(m)
       }
     })
@@ -70,11 +71,13 @@ export class Parts {
   }
 
   // ndcX/ndcY：归一化设备坐标
-  pick(ndcX, ndcY, camera) {
+  pick(ndcX, ndcY, camera, clipPlane = null) {
     this._pointer.set(ndcX, ndcY)
     this._raycaster.setFromCamera(this._pointer, camera)
     const objects = this.pickables.map((n) => this.nodes.get(n)).filter(Boolean)
-    const hits = this._raycaster.intersectObjects(objects, true)
+    const all = this._raycaster.intersectObjects(objects, true)
+    // 剖切开启时，被裁掉（看不见）的那半不能被点中
+    const hits = clipPlane ? all.filter((h) => clipPlane.distanceToPoint(h.point) >= 0) : all
     if (!hits.length) return null
     let o = hits[0].object
     while (o && !this.pickables.includes(o.name)) o = o.parent

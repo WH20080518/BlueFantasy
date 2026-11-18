@@ -566,7 +566,7 @@ CAULKING     捻缝
 - 南海I号 船体 结构
 - Chinese junk midship section
 - Chinese ship watertight bulkhead
-- mortise and tenon shipbuilding
+- mortise-and-tenon shipbuilding
 
 **版权提醒**：博物馆图片只作参考，不直接用于参赛页面；页面素材需自制、AI 生成或明确授权。
 
