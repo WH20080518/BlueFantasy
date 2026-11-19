@@ -104,4 +104,4 @@ Wood holds wood. Nails hold wood. Words hold words.
 
 - [x] **背景音**：不加常驻环境音与配乐（避免与外语旁白干扰，也避免额外音频授权风险；已同步至 `03-architecture.md` ADR-005）。
 - [x] **旁白语种**：提供中文口播 + 双语字幕，另备独立英文口播稿（见 §1）供外籍评审或英文演示使用。
-- [x] **结尾展示**：片尾静止画面保留主站（`wh20080518.github.io/BlueFantasy/`）、备用镜像（`bluefantasy.pages.dev`）与仓库链接/二维码。
+- [x] **结尾展示**：片尾静止画面保留主站（`wh20080518.github.io/Joinery/`）、备用镜像（`bluefantasy.pages.dev`）与仓库链接/二维码。

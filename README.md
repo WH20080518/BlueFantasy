@@ -1,21 +1,53 @@
-# BlueFantasy · 蓝色创想
+# Joinery · 《榫合》
 
-山东大学翻译学院「蓝色创想·以语为桥」跨文化传播创新实践大赛 **B 赛道（蓝色数字传播）** 交互式网页参赛项目。
+山东大学「蓝色创想·以语为桥」跨文化传播创新实践大赛 **B 赛道（蓝色数字传播）** 交互式网页参赛作品。
 
-> 作品：**《榫合》/ *Joinery***——拆开一艘中国古船，讲榫、钉、捻缝与水密隔舱，纠正“古船不用一根钉”的误解，并用 b6 屏展示“榫卯”一词如何译成英文。
+> 拆开一艘中国古船：榫头与卯眼、铁钉与捻缝、水密隔舱，以及「榫卯」这个词如何穿过语言。
+> Take a Chinese ship apart, and see what actually holds it together.
 
-## 项目状态
+---
 
-- 阶段：代码与文档收尾完成，待录屏与最终提交打包
-- 技术栈：Vite + 原生 JavaScript + CSS/SVG，Three.js 承担船体（动态 `import()`，独立 chunk）
-- 语种：中文 / 英文（第三语种决定不启用，见 [`docs/09-glossary.md`](docs/09-glossary.md) §4）
-- 降级：无 WebGL2、3D 加载失败或 `?no3d` 时，每屏显示对应双语 SVG 图示，文案完整
-- 提交截止：2026-11-19 24:00
+## 在线访问
 
-## 在线地址
+| 用途 | 地址 |
+|---|---|
+| 主站（GitHub Pages） | https://wh20080518.github.io/Joinery/ |
+| 备用镜像（Cloudflare Pages） | https://bluefantasy.pages.dev |
+| 源代码仓库 | https://github.com/WH20080518/Joinery |
 
-- 主站：https://wh20080518.github.io/BlueFantasy/ （GitHub Pages）
-- 备用：https://bluefantasy.pages.dev （Cloudflare Pages）
+评审期内两个链接都需要保持可访问。
+
+## 作品是什么
+
+一个中英双语的滚动叙事网页，七幕讲完一艘古船怎么拼起来。针对「古船不用一根钉」这句流行说法拆解：榫卯负责定位，铁钉或木钉负责加固，桐油灰拌麻丝把缝捻死——三种连接叠加使用，不是三选一。
+
+史实依据：泉州湾后渚港宋代海船（1974 年发掘，残长 24.2 米，12 道隔舱板分隔成 13 个舱）；「中国水密隔舱福船制造技艺」2010 年列入 UNESCO 急需保护名录。逐条出处见 [`docs/10-fact-check.md`](docs/10-fact-check.md)。
+
+七幕结构：① 古船剪影与那句俗话 → ② 榫头 / 卯眼爆炸图（可点击） → ③ 船板接缝：榫卯 → 铁钉 → 捻缝三步补缝 → ④ 剖切船体，十二道隔舱 → ⑤ 漏水对比实验（有 / 无隔舱） → ⑥ 「一个词怎么过海」术语迁移视图 → ⑦ 三问收束。
+
+## 交互方式
+
+- **滚动**推进镜头与分镜，不要求用户学操作
+- **点击零件**查看中英名称与一句解释（键盘：Tab 遍历、Enter 选中、Escape 退出）
+- **补缝三步**：顺序错会渗水提示，正确顺序闭合缝隙
+- **漏水实验**：切换「有水密隔舱 / 无隔舱」，同一破口对比船的姿态
+- **语言切换**：中英互切，镜头、滚动位置与交互状态都不重置
+
+## 技术栈与降级
+
+- Vite 6 + 原生 JavaScript + CSS/SVG；Three.js 0.170 负责船体（动态 `import()`，独立 chunk）
+- 船体模型 23 个节点 / 38,678 三角面 / 2.32 MB，预算 60,000 面 / 5 MB
+- **降级**：浏览器没有 WebGL2、three 加载失败，或加 `?no3d` 时，整站切到纸面主题，每屏显示对应双语 SVG 图示，文案与交互说明不丢
+- 无障碍：键盘可达、`aria-live` 播报、`prefers-reduced-motion` 降低动效
+
+### URL 参数
+
+| 参数 | 作用 |
+|---|---|
+| `?beat=N` | 直接定位到第 N 屏（1–7） |
+| `?lang=zh` / `?lang=en` | 指定语言（否则读 localStorage，再默认中文） |
+| `?no3d`（或 `=1`） | 关闭 3D，使用 SVG 降级；`?no3d=0` 视为正常模式 |
+| `?water=static` / `?water=off` | 水面排查开关：冻结动画与反射 / 不画水 |
 
 ## 本地运行
 
@@ -30,21 +62,25 @@ npm run check:parts # 校验 models/parts.json 与节点命名
 npm run check:model # 校验 ship.glb 预算（体积、三角面、材质、节点、纹理）
 ```
 
-`dev` / `build` 会先自动把 `models/parts.json` 同步到 `public/models/`。
+`dev` / `build` 会自动把 `models/parts.json` 同步到 `public/models/`。
 
-### URL 参数
+## 交付清单
 
-| 参数 | 作用 |
+对照 [`docs/02-delivery-checklist.md`](docs/02-delivery-checklist.md)：
+
+| 项 | 状态 |
 |---|---|
-| `?beat=N` | 直接定位到第 N 屏（1–7） |
-| `?lang=zh` / `?lang=en` | 指定语言（否则读 localStorage，再默认中文） |
-| `?no3d`（或 `=1`） | 关闭 3D，使用 SVG 降级；`?no3d=0` 视为正常模式 |
-| `?water=static` / `?water=off` | 水面排查开关：冻结动画与反射 / 不画水 |
+| 可访问测试链接（主站 + 镜像） | ✅ |
+| 源代码 | ✅ 本仓库 |
+| 作品说明 200–400 字（Word） | ✅ 底稿在 [`docs/20`](docs/20-submission-materials.md)，docx 按 `.gitignore` 不入库 |
+| AI 创作说明 300–500 字（Word） | ✅ 同上 |
+| 演示录屏 1–3 分钟 1080P | ⬜ 待录制，脚本与字幕见 [`docs/12`](docs/12-demo-script.md) |
+| 报名表 | ⬜ 官方通知未列出该项，待与主办方确认 |
 
 ## 目录结构
 
 ```
-BlueFantasy/
+Joinery/
 ├─ index.html
 ├─ vite.config.js
 ├─ models/            # parts.json（零件装配表）与 schema，构建时同步到 public/models/
@@ -84,8 +120,7 @@ BlueFantasy/
 ## 部署
 
 - 推 `main`：GitHub Actions 构建并发布到 GitHub Pages；Cloudflare 由 Git 集成构建
-- `vite.config.js` 按环境变量 `CF_PAGES` 切换 `base`（Cloudflare 为 `/`，GitHub Pages 为 `/BlueFantasy/`）
-- 评审期内必须保持两个链接可访问
+- `vite.config.js` 按环境变量 `CF_PAGES` 切换 `base`（Cloudflare 为 `/`，GitHub Pages 为 `/Joinery/`）
 
 ## 许可
 

@@ -7,7 +7,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 
 const CDP = process.env.CDP || 'http://127.0.0.1:9222'
-const PAGE = process.env.PAGE || 'http://127.0.0.1:4176/BlueFantasy/'
+const PAGE = process.env.PAGE || 'http://127.0.0.1:4176/Joinery/'
 const OUT = process.env.OUT || 'docs/shots'
 
 // 只留关键帧，避免仓库体积膨胀；要看别的位置改这里

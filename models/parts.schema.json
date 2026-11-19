@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "BlueFantasy parts.json",
+  "title": "Joinery parts.json",
   "description": "GLB 节点名、装配/爆炸位与模型单位。推荐 { unit, parts }；旧格式纯数组仍兼容。",
   "oneOf": [
     {

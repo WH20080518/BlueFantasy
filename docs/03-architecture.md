@@ -162,7 +162,7 @@ content/
 ## 7. 目录结构（规划稿；实际结构以 README 为准：`src/{content,stage,interactions,ui}`，文案为 `src/content/*.js`，零件表为 `models/parts.json`）
 
 ```
-BlueFantasy/
+Joinery/
 ├─ index.html
 ├─ package.json
 ├─ vite.config.js
@@ -209,8 +209,8 @@ BlueFantasy/
 - 仓库必须为 **Public**；免费 Pages 不支持私有库（私有库需 GitHub Pro）
 - Settings → Pages → Source 选 **GitHub Actions**
 - 推送到 `main` 触发 `.github/workflows/deploy.yml`：安装依赖 → 构建 → 发布 `dist`
-- 项目页地址：`https://wh20080518.github.io/BlueFantasy/`
-- Vite 必须设置 `base: '/BlueFantasy/'`，否则 JS/CSS 404
+- 项目页地址：`https://wh20080518.github.io/Joinery/`
+- Vite 必须设置 `base: '/Joinery/'`，否则 JS/CSS 404
 - 绑定自定义域名到根路径后，`base` 改回 `'/'`
 
 ### 8.2 Cloudflare Pages（备）

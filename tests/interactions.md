@@ -10,8 +10,8 @@
 > 跑法：
 > ```bash
 > npm run build
-> npx vite preview --port 4178 --base /BlueFantasy/
-> CDP=http://127.0.0.1:9223 PAGE=http://localhost:4178/BlueFantasy/ node tests/interactions.run.mjs
+> npx vite preview --port 4178 --base /Joinery/
+> CDP=http://127.0.0.1:9223 PAGE=http://localhost:4178/Joinery/ node tests/interactions.run.mjs
 > ```
 
 ## 一、补缝三步（b3）

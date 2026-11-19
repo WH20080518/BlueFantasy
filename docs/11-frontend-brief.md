@@ -1,6 +1,6 @@
 # 前端实现任务书（Claude Code 执行）
 
-> 项目：`/mnt/d/Dev/BlueFantasy`（Vite + 原生 JS + three）
+> 项目：`/mnt/d/Dev/Joinery`（Vite + 原生 JS + three）
 > 日期：2026-11-11
 > 你的角色：前端开发。你只需要产出可运行的代码，不要 push，不要改 `docs/`。
 

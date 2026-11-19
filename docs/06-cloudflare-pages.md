@@ -6,14 +6,14 @@
 
 ## 正式地址
 
-- 主站：https://wh20080518.github.io/BlueFantasy/
+- 主站：https://wh20080518.github.io/Joinery/
 - 备用：https://bluefantasy.pages.dev
 
 ## 方案 A：Dashboard 连接 Git（已采用）
 
 1. 登录 Cloudflare Dashboard
 2. 左侧 **Workers & Pages** → **Create** → **Pages** → **Connect to Git**
-3. 选择 GitHub 仓库 `WH20080518/BlueFantasy`
+3. 选择 GitHub 仓库 `WH20080518/Joinery`
 4. 构建设置：
    - Framework preset：`Vite`
    - Build command：`npm run build`
@@ -50,18 +50,18 @@ npx wrangler pages deploy dist --project-name bluefantasy
 - 不需要 ICP 备案
 - 大陆访问速度不稳定，免费版可能绕美国节点；只作为备用链接
 - 自定义域名可在 Pages 项目的 **Custom domains** 里绑定
-- 如果绑定了自定义域名，`vite.config.js` 的 `base` 仍保持 `/BlueFantasy/` 只影响 GitHub Pages 项目页；Cloudflare 从根路径提供服务，需要在 Cloudflare 构建时覆盖 `base` 为 `/`
+- 如果绑定了自定义域名，`vite.config.js` 的 `base` 仍保持 `/Joinery/` 只影响 GitHub Pages 项目页；Cloudflare 从根路径提供服务，需要在 Cloudflare 构建时覆盖 `base` 为 `/`
 
 ### base 路径冲突的处理
 
-GitHub Pages 项目页需要 `base: '/BlueFantasy/'`，Cloudflare Pages 根路径需要 `base: '/'`。两种做法：
+GitHub Pages 项目页需要 `base: '/Joinery/'`，Cloudflare Pages 根路径需要 `base: '/'`。两种做法：
 
 1. Cloudflare 构建命令改为：`npm run build -- --base=/`
 2. 或用环境变量在 `vite.config.js` 里判断：
 
 ```js
 export default defineConfig({
-  base: process.env.CF_PAGES ? '/' : '/BlueFantasy/',
+  base: process.env.CF_PAGES ? '/' : '/Joinery/',
 })
 ```
 
@@ -70,7 +70,7 @@ export default defineConfig({
 ## 提交材料写法
 
 ```
-主链接：https://wh20080518.github.io/BlueFantasy/
+主链接：https://wh20080518.github.io/Joinery/
 备用链接：https://bluefantasy.pages.dev
 ```
 

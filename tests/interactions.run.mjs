@@ -1,15 +1,15 @@
 // 交互用例自动跑批（tests/interactions.md 的 20 条）
 //
 // 用法：
-//   1) npm run build && npx vite preview --port 4177 --base /BlueFantasy/
+//   1) npm run build && npx vite preview --port 4177 --base /Joinery/
 //   2) 启动一个可连 CDP 的 Chromium（OpenClaw 的浏览器即可）
-//   3) CDP=http://127.0.0.1:18800 PAGE=http://localhost:4177/BlueFantasy/ node tests/interactions.run.mjs
+//   3) CDP=http://127.0.0.1:18800 PAGE=http://localhost:4177/Joinery/ node tests/interactions.run.mjs
 //
 // 只做 DOM 层断言：补缝状态机、按钮 disabled/aria、语言与 URL 持久化、降级路径。
 // 3D 视觉收敛（水面高度、船体姿态）无法在无 GPU 环境判定，脚本里会明确标成「未验证」。
 
 const CDP = process.env.CDP || 'http://127.0.0.1:18800'
-const PAGE = process.env.PAGE || 'http://localhost:4177/BlueFantasy/'
+const PAGE = process.env.PAGE || 'http://localhost:4177/Joinery/'
 
 let ws
 let msgId = 0

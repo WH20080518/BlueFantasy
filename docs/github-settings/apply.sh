@@ -3,7 +3,7 @@
 # 用法：bash docs/github-settings/apply.sh [owner/repo]
 set -euo pipefail
 
-REPO="${1:-WH20080518/BlueFantasy}"
+REPO="${1:-WH20080518/Joinery}"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "==> 目标仓库：$REPO"

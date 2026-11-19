@@ -2,10 +2,10 @@
 
 > 给模型负责人直接执行。本文把“建一艘船”拆成 13 个可验收任务，每个任务都有输入、步骤、交付文件、验收标准和参考链接。
 >
-> 项目仓库：https://github.com/WH20080518/BlueFantasy
-> 在线页面：https://wh20080518.github.io/BlueFantasy/
+> 项目仓库：https://github.com/WH20080518/Joinery
+> 在线页面：https://wh20080518.github.io/Joinery/
 > 备用镜像：https://bluefantasy.pages.dev/
-> 旧版 brief（供对照）：https://github.com/WH20080518/BlueFantasy/blob/main/docs/07-modeling-brief.md
+> 旧版 brief（供对照）：https://github.com/WH20080518/Joinery/blob/main/docs/07-modeling-brief.md
 
 ---
 
@@ -546,10 +546,10 @@ CAULKING     捻缝
 
 ### 5.1 项目链接
 
-- 仓库：https://github.com/WH20080518/BlueFantasy
-- 文档目录：https://github.com/WH20080518/BlueFantasy/tree/main/docs
-- 设计方向：https://github.com/WH20080518/BlueFantasy/blob/main/docs/04-design-direction.md
-- 架构：https://github.com/WH20080518/BlueFantasy/blob/main/docs/03-architecture.md
+- 仓库：https://github.com/WH20080518/Joinery
+- 文档目录：https://github.com/WH20080518/Joinery/tree/main/docs
+- 设计方向：https://github.com/WH20080518/Joinery/blob/main/docs/04-design-direction.md
+- 架构：https://github.com/WH20080518/Joinery/blob/main/docs/03-architecture.md
 
 ### 5.2 历史与实物参考
 

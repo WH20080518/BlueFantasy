@@ -14,10 +14,10 @@
 ## 一条命令导入
 
 ```bash
-gh api -X POST repos/WH20080518/BlueFantasy/rulesets --input docs/github-settings/ruleset-main.json
-gh api -X POST repos/WH20080518/BlueFantasy/rulesets --input docs/github-settings/ruleset-tags.json
-gh api -X PATCH repos/WH20080518/BlueFantasy --input docs/github-settings/repo-settings.json
-gh api -X PUT repos/WH20080518/BlueFantasy/actions/permissions/workflow --input docs/github-settings/actions-permissions.json
+gh api -X POST repos/WH20080518/Joinery/rulesets --input docs/github-settings/ruleset-main.json
+gh api -X POST repos/WH20080518/Joinery/rulesets --input docs/github-settings/ruleset-tags.json
+gh api -X PATCH repos/WH20080518/Joinery --input docs/github-settings/repo-settings.json
+gh api -X PUT repos/WH20080518/Joinery/actions/permissions/workflow --input docs/github-settings/actions-permissions.json
 ```
 
 网页导入：Settings → Rules → Rulesets → **New ruleset** → 右上角 **Import a ruleset**，选 JSON。

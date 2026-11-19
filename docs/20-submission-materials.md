@@ -10,9 +10,9 @@
 - **作品说明文件**：`B赛道＋<队长姓名>＋作品说明.docx`
 - **AI 创作说明文件**：`B赛道＋<队长姓名>＋AI创作说明.docx`
 - **演示录屏文件**：`B赛道＋<队长姓名>＋演示录屏.mp4`（1080P，H.264）
-- **公网主站**：`https://wh20080518.github.io/BlueFantasy/`
+- **公网主站**：`https://wh20080518.github.io/Joinery/`
 - **备用镜像**：`https://bluefantasy.pages.dev`
-- **源代码仓库**：`https://github.com/WH20080518/BlueFantasy`
+- **源代码仓库**：`https://github.com/WH20080518/Joinery`
 
 ---
 
