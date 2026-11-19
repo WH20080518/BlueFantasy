@@ -71,3 +71,5 @@ The team independently designed the seven-passage narrative, built and refined a
 | 龙骨 / 艏柱 / 艉柱 | keel / stem / sternpost | 直译 | 船体主骨架节点 |
 | 隔舱板 / 水密隔舱 | bulkhead / watertight compartment | 直译 | 制度层面写 `watertight bulkhead system`；装货语境写 `hold` |
 | 船壳板 / 船板接缝 / 甲板 | hull plank / plank seam / deck | 直译 | 整层船壳写 `hull planking` |
+| 斜直角法榫合 | right-angle scarf joint | 解释译 | 主龙骨两端接头的做法（10-fact-check F05） |
+| 保寿孔 | longevity hole | 待核 | 主龙骨两端「七星伴月」孔，英文名待定，未在页面使用 |
